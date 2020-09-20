@@ -17,7 +17,7 @@ func parseArgs() (outputDirectory string, inputDirectories []string) {
 		inputDirectories = append(inputDirectories, arg)
 	}
 
-	outputDirectory = "uut"
+	outputDirectory = "out"
 	return outputDirectory, inputDirectories
 }
 
