@@ -3,24 +3,34 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
 )
 
 func parseArgs() (outputDirectory string, inputDirectories []string) {
-	outputDirectoryPtr := flag.String("o", ".", "Output directory")
+	outputDirectoryPtr := flag.String("o", ".", "Output root directory for gallery")
+
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: %s [OPTION]... DIRECTORY...\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Create a static photo and video gallery from directories.\n")
+		fmt.Fprintf(os.Stderr, "\n")
+		fmt.Fprintf(os.Stderr, "Will recurse each of supplied DIRECTORY \n")
+		fmt.Fprintf(os.Stderr, "\n")
+		flag.PrintDefaults()
+	}
 
 	flag.Parse()
 
-	fmt.Println("o:", *outputDirectoryPtr)
 	if flag.NArg() == 0 {
-		fmt.Println("missing argument")
+		fmt.Fprintf(os.Stderr, "%s: missing directories to use as input\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Try '%s -h' for more information.\n", os.Args[0])
+		os.Exit(1)
 	}
-	fmt.Println("tail:")
+
 	for _, arg := range flag.Args() {
 		inputDirectories = append(inputDirectories, arg)
 	}
 
-	outputDirectory = "out"
-	return outputDirectory, inputDirectories
+	return *outputDirectoryPtr, inputDirectories
 }
 
 func main() {
