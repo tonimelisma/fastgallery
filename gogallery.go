@@ -11,9 +11,11 @@ func parseArgs() (outputDirectory string, inputDirectories []string) {
 	flag.Parse()
 
 	fmt.Println("o:", *outputDirectoryPtr)
+	if flag.NArg() == 0 {
+		fmt.Println("missing argument")
+	}
 	fmt.Println("tail:")
-	for i, arg := range flag.Args() {
-		fmt.Println("item", i, "is", arg)
+	for _, arg := range flag.Args() {
 		inputDirectories = append(inputDirectories, arg)
 	}
 
