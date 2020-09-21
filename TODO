@@ -1,0 +1,18 @@
+process
+1. create symlinks in gallery
+2. create full-size photos/videos in gallery
+3. create thumbnails in gallery
+4. create directory index.html:s in gallery for changed directories and where doesn't exist
+5. delete old redundant gallery files (those that don't exist)
+
+backlog
+- make full-size and thumbnail creation concurrent
+- print progress indicator
+
+architecture
+- use thumbnails as master in output directory
+- create symlinks and full-size pics before full-screen version
+
+hotfixes
+- how to quickly check emptiness of directory?
+- TODO go through all the todo stuff
