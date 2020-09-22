@@ -9,8 +9,9 @@ import (
 	"time"
 )
 
-func parseArgs() (inputDirectory string, outputDirectory string) {
+func parseArgs() (inputDirectory string, outputDirectory string, optDryRun bool) {
 	outputDirectoryPtr := flag.String("o", ".", "Output root directory for gallery")
+	optDryRunPtr := flag.Bool("d", false, "Dry run - don't make changes, only explain what would be done")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [OPTION]... DIRECTORY\n", os.Args[0])
@@ -48,19 +49,21 @@ func parseArgs() (inputDirectory string, outputDirectory string) {
 		os.Exit(1)
 	}
 
-	return *outputDirectoryPtr, flag.Args()[0]
+	return *outputDirectoryPtr, flag.Args()[0], *optDryRunPtr
 }
 
 type file struct {
 	name    string
-	path    string
+	relPath string
+	absPath string
 	modTime time.Time
 	exists  bool
 }
 
 type directory struct {
 	name           string
-	path           string
+	relPath        string
+	absPath        string
 	modTime        time.Time
 	subdirectories []directory
 	files          []file
@@ -100,7 +103,8 @@ func recurseDirectory(thisDirectory string, relativeDirectory string) (root dire
 	root.name = filepath.Base(thisDirectory)
 	asIsStat, _ := os.Stat(thisDirectory)
 	root.modTime = asIsStat.ModTime()
-	root.path = relativeDirectory
+	root.relPath = relativeDirectory
+	root.absPath, _ = filepath.Abs(thisDirectory)
 
 	list, err := ioutil.ReadDir(thisDirectory)
 	checkError(err)
@@ -112,7 +116,7 @@ func recurseDirectory(thisDirectory string, relativeDirectory string) (root dire
 			}
 		} else {
 			if isMediaFile(entry.Name()) {
-				root.files = append(root.files, file{name: entry.Name(), modTime: entry.ModTime(), path: filepath.Join(relativeDirectory, entry.Name()), exists: false})
+				root.files = append(root.files, file{name: entry.Name(), modTime: entry.ModTime(), relPath: filepath.Join(relativeDirectory, entry.Name()), absPath: filepath.Join(thisDirectory, entry.Name()), exists: false})
 			}
 		}
 	}
@@ -151,24 +155,56 @@ func countFiles(source directory, inputChanges int) (outputChanges int) {
 	return outputChanges
 }
 
+func createSymlinks(source directory, gallery directory, optDryRun bool) {
+	fmt.Println(source)
+	fmt.Println(gallery.absPath)
+	fmt.Println(optDryRun)
+}
+
+func transformChanges(source directory, gallery directory, optDryRun bool) {
+	// create symlinks in gallery for non-existing source files
+	createSymlinks(source, gallery, optDryRun)
+
+	// create full-size photos in gallery for non-existing source files
+
+	// create thumbnail photos in gallery for non-existing source files
+
+	// create index.html files
+
+	// delete non-existing gallery symlinks, full-size photos and thumbnails
+
+}
+
 func main() {
 	var inputDirectory string
 	var outputDirectory string
+	var optDryRun bool
+
 	var gallery directory
 	var source directory
 	var changes int
 
-	outputDirectory, inputDirectory = parseArgs()
+	outputDirectory, inputDirectory, optDryRun = parseArgs()
 
 	fmt.Println(os.Args[0], ": Creating photo gallery")
 	fmt.Println("")
 	fmt.Println("Gathering photos and videos from:", inputDirectory)
 	fmt.Println("Creating static gallery in:", outputDirectory)
+	if optDryRun {
+		fmt.Println("Only dry run, not actually changing anything")
+	}
 	fmt.Println("")
 
+	// create directory sructs by recursing through source and gallery directories
 	gallery = recurseDirectory(outputDirectory, "")
 	source = recurseDirectory(inputDirectory, "")
 	changes = countFiles(source, 0)
+
+	// check whether gallery already has up-to-date pictures of sources,
+	// mark existing pictures in structs
 	compareDirectories(&source, &gallery, &changes)
 	fmt.Println(changes, "new pictures to update")
+
+	// create the gallery and delete stale pictures
+	transformChanges(source, gallery, optDryRun)
 }
