@@ -4,3 +4,5 @@
 - Deals with new file formats (HEIC, HEVC, etc)
 - Works iteratively (only updates changes)
 - Uses relative paths
+
+N.B. deletes all unused media files in output directory

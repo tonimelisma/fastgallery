@@ -6,9 +6,19 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
+// global defaults
+var optSymlinkDir = "Original"
+var optFullsizeDir = "Pictures"
+var optThumbnailDir = "Thumbnails"
+
+var optDirectoryMode os.FileMode = 0755
+var optFileMode os.FileMode = 0644
+
+// this function parses command-line arguments
 func parseArgs() (inputDirectory string, outputDirectory string, optDryRun bool) {
 	outputDirectoryPtr := flag.String("o", ".", "Output root directory for gallery")
 	optDryRunPtr := flag.Bool("d", false, "Dry run - don't make changes, only explain what would be done")
@@ -52,6 +62,10 @@ func parseArgs() (inputDirectory string, outputDirectory string, optDryRun bool)
 	return *outputDirectoryPtr, flag.Args()[0], *optDryRunPtr
 }
 
+// each file has a corresponding struct with relative and absolute paths
+// for source files, if a newer thumbnail exists in gallery we set the existing flag and don't copy it
+// for gallery files, if no corresponding source file exists, the existing flag stays false
+// all non-existing gallery files will be deleted in the end
 type file struct {
 	name    string
 	relPath string
@@ -76,6 +90,7 @@ func checkError(e error) {
 }
 
 func isEmptyDir(directory string) (isEmpty bool) {
+	// TODO figure out a faster way to check if directory is empty
 	list, err := ioutil.ReadDir(directory)
 	checkError(err)
 
@@ -86,8 +101,7 @@ func isEmptyDir(directory string) (isEmpty bool) {
 }
 
 func isMediaFile(filename string) (isMedia bool) {
-	//TODO fix add strings.toLower() once goimport stops removing it
-	switch filepath.Ext(filename) {
+	switch filepath.Ext(strings.ToLower(filename)) {
 	case ".jpg", ".jpeg", ".heic", ".png", ".gif", ".tif":
 		return true
 	case ".cr2", ".raw", ".arw":
@@ -112,11 +126,11 @@ func recurseDirectory(thisDirectory string, relativeDirectory string) (root dire
 	for _, entry := range list {
 		if entry.IsDir() {
 			if !isEmptyDir(filepath.Join(thisDirectory, entry.Name())) {
-				root.subdirectories = append(root.subdirectories, recurseDirectory(filepath.Join(thisDirectory, entry.Name()), filepath.Join(relativeDirectory, entry.Name())))
+				root.subdirectories = append(root.subdirectories, recurseDirectory(filepath.Join(thisDirectory, entry.Name()), filepath.Join(relativeDirectory, root.name)))
 			}
 		} else {
 			if isMediaFile(entry.Name()) {
-				root.files = append(root.files, file{name: entry.Name(), modTime: entry.ModTime(), relPath: filepath.Join(relativeDirectory, entry.Name()), absPath: filepath.Join(thisDirectory, entry.Name()), exists: false})
+				root.files = append(root.files, file{name: entry.Name(), modTime: entry.ModTime(), relPath: filepath.Join(relativeDirectory, root.name, entry.Name()), absPath: filepath.Join(thisDirectory, entry.Name()), exists: false})
 			}
 		}
 	}
@@ -127,11 +141,16 @@ func recurseDirectory(thisDirectory string, relativeDirectory string) (root dire
 func compareDirectories(source *directory, gallery *directory, changes *int) {
 	for i, inputFile := range source.files {
 		for j, outputFile := range gallery.files {
-			// TODO what if modtimes are exact same as expected
-			if inputFile.name == outputFile.name && outputFile.modTime.After(inputFile.modTime) {
-				source.files[i].exists = true
+			if inputFile.name == outputFile.name {
+				fmt.Println("gallery exists:", gallery.files[j].absPath, gallery.files[j].exists)
 				gallery.files[j].exists = true
-				*changes--
+				fmt.Println("after update:", gallery.files[j].modTime, source.files[i].modTime)
+				if !outputFile.modTime.Before(inputFile.modTime) {
+					source.files[i].exists = true
+					fmt.Println("outputfile not modified before inputfile:", inputFile.absPath)
+					*changes--
+				}
+				fmt.Println("")
 			}
 		}
 	}
@@ -139,7 +158,7 @@ func compareDirectories(source *directory, gallery *directory, changes *int) {
 	for k, inputDir := range source.subdirectories {
 		for l, outputDir := range gallery.subdirectories {
 			if inputDir.name == outputDir.name {
-				compareDirectories(&(gallery.subdirectories[l]), &(source.subdirectories[k]), changes)
+				compareDirectories(&(source.subdirectories[l]), &(gallery.subdirectories[k]), changes)
 			}
 		}
 	}
@@ -155,24 +174,101 @@ func countFiles(source directory, inputChanges int) (outputChanges int) {
 	return outputChanges
 }
 
-func createSymlinks(source directory, gallery directory, optDryRun bool) {
-	fmt.Println(source)
-	fmt.Println(gallery.absPath)
-	fmt.Println(optDryRun)
+func createGallery(source directory, sourceRootDir string, gallery directory, optDryRun bool) {
+	// Create directories if they don't exist
+	symlinkDirectoryPath := strings.Replace(filepath.Join(gallery.absPath, source.relPath, source.name), sourceRootDir, optSymlinkDir, 1)
+	createDirectory(symlinkDirectoryPath, optDryRun)
+
+	fullsizeDirectoryPath := strings.Replace(filepath.Join(gallery.absPath, source.relPath, source.name), sourceRootDir, optFullsizeDir, 1)
+	createDirectory(fullsizeDirectoryPath, optDryRun)
+
+	thumbnailDirectoryPath := strings.Replace(filepath.Join(gallery.absPath, source.relPath, source.name), sourceRootDir, optThumbnailDir, 1)
+	createDirectory(thumbnailDirectoryPath, optDryRun)
+
+	for _, file := range source.files {
+		if !file.exists {
+			// Symlink each file
+			symlinkFilePath := strings.Replace(filepath.Join(gallery.absPath, file.relPath), sourceRootDir, optSymlinkDir, 1)
+			symlinkFile(file.absPath, symlinkFilePath, optDryRun)
+
+			// Create full-size copy
+			fullsizeFilePath := strings.Replace(filepath.Join(gallery.absPath, file.relPath), sourceRootDir, optFullsizeDir, 1)
+			fullsizeCopyFile(file.absPath, fullsizeFilePath, optDryRun)
+
+			// Create thumbnail
+			thumbnailFilePath := strings.Replace(filepath.Join(gallery.absPath, file.relPath), sourceRootDir, optThumbnailDir, 1)
+			thumbnailCopyFile(file.absPath, thumbnailFilePath, optDryRun)
+		}
+	}
+
+	// Recurse into each subdirectory to continue creating symlinks
+	for _, dir := range source.subdirectories {
+		createGallery(dir, sourceRootDir, gallery, optDryRun)
+	}
 }
 
-func transformChanges(source directory, gallery directory, optDryRun bool) {
-	// create symlinks in gallery for non-existing source files
-	createSymlinks(source, gallery, optDryRun)
+func createDirectory(destination string, optDryRun bool) {
+	if _, err := os.Stat(destination); os.IsNotExist(err) {
+		if optDryRun {
+			fmt.Println("Would create dir", destination)
+		} else {
+			err := os.Mkdir(destination, optDirectoryMode)
+			checkError(err)
+		}
+	}
+}
 
-	// create full-size photos in gallery for non-existing source files
+func symlinkFile(source string, destination string, optDryRun bool) {
+	if optDryRun {
+		fmt.Println("Would link", source, "to", destination)
+	} else {
+		err := os.Symlink(source, destination)
+		checkError(err)
+	}
+}
 
-	// create thumbnail photos in gallery for non-existing source files
+func fullsizeCopyFile(source string, destination string, optDryRun bool) {
+	if optDryRun {
+		fmt.Println("Would full-size copy", source, "to", destination)
+	} else {
+		// TODO MAGIC HAPPENS HERE
+	}
+}
 
-	// create index.html files
+func thumbnailCopyFile(source string, destination string, optDryRun bool) {
+	if optDryRun {
+		fmt.Println("Would thumbnail copy", source, "to", destination)
+	} else {
+		// TODO MAGIC HAPPENS HERE
+	}
+}
 
-	// delete non-existing gallery symlinks, full-size photos and thumbnails
+func cleanGallery(gallery directory, optDryRun bool) {
+	for _, file := range gallery.files {
+		if !file.exists {
+			if optDryRun {
+				fmt.Println("Would delete", file.absPath)
+				fmt.Println(file)
+			} else {
+				err := os.Remove(file.absPath)
+				checkError(err)
+			}
 
+		}
+	}
+
+	for _, dir := range gallery.subdirectories {
+		cleanGallery(dir, optDryRun)
+	}
+
+	if isEmptyDir(gallery.absPath) {
+		if optDryRun {
+			fmt.Println("Would remove empty directory", gallery.absPath)
+		} else {
+			err := os.Remove(gallery.absPath)
+			checkError(err)
+		}
+	}
 }
 
 func main() {
@@ -202,9 +298,31 @@ func main() {
 
 	// check whether gallery already has up-to-date pictures of sources,
 	// mark existing pictures in structs
-	compareDirectories(&source, &gallery, &changes)
 	fmt.Println(changes, "new pictures to update")
+	for _, dir := range gallery.subdirectories {
+		if dir.name == optSymlinkDir {
+			compareDirectories(&source, &dir, &changes)
+		}
+	}
+	for _, dir := range gallery.subdirectories {
+		if dir.name == optFullsizeDir {
+			compareDirectories(&source, &dir, &changes)
+		}
+	}
+	for _, dir := range gallery.subdirectories {
+		if dir.name == optThumbnailDir {
+			compareDirectories(&source, &dir, &changes)
+		}
+	}
+	fmt.Println(changes, "new pictures to update")
+	//fmt.Println(source)
+	fmt.Println("")
+	fmt.Println(gallery)
+	fmt.Println("")
 
-	// create the gallery and delete stale pictures
-	transformChanges(source, gallery, optDryRun)
+	// create the gallery
+	createGallery(source, source.name, gallery, optDryRun)
+
+	// delete stale pictures
+	cleanGallery(gallery, optDryRun)
 }

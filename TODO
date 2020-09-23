@@ -9,10 +9,14 @@ backlog
 - make full-size and thumbnail creation concurrent
 - print progress indicator
 
-architecture
-- use thumbnails as master in output directory
-- create symlinks and full-size pics before full-screen version
+release 2
+- check that each of symlink, fullsize and thumbnail exist
 
 hotfixes
 - how to quickly check emptiness of directory?
 - TODO go through all the todo stuff
+
+both exist
+source is newer than gallery -> update source (!source.exists), don't delete gallery (gallery.exists)
+gallery is newer than source -> don't update source (source.exists), don't delete gallery (gallery.exists)
+source and gallery are as new -> same as B
