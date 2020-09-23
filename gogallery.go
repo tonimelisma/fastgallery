@@ -239,7 +239,7 @@ func symlinkFile(source string, destination string, optDryRun bool) {
 	}
 }
 
-func thumbnailImage(source string, destination string) {
+func resizeThumbnailImage(source string, destination string) {
 	buffer, err := bimg.Read(source)
 	checkError(err)
 
@@ -249,11 +249,15 @@ func thumbnailImage(source string, destination string) {
 	bimg.Write(destination, newImage)
 }
 
-func fullsizeImage(source string, destination string) {
+func resizeFullsizeImage(source string, destination string) {
 	buffer, err := bimg.Read(source)
 	checkError(err)
 
-	newImage, err := bimg.NewImage(buffer).Thumbnail(150)
+	var newImage []byte
+	bufferImageSize, err := bimg.Size(buffer)
+	ratio := bufferImageSize.Width / bufferImageSize.Height
+
+	newImage, err = bimg.NewImage(buffer).Resize(ratio*1080, 1080)
 	checkError(err)
 
 	bimg.Write(destination, newImage)
@@ -264,13 +268,13 @@ func fullsizeCopyFile(source string, destination string, optDryRun bool) {
 		if optDryRun {
 			fmt.Println("Would full-size copy image", source, "to", destination)
 		} else {
-			// TODO Image magic here
+			resizeFullsizeImage(source, destination)
 		}
 	} else if isVideoFile(source) {
 		if optDryRun {
 			fmt.Println("Would full-size copy video ", source, "to", destination)
 		} else {
-			// TODO Image magic here
+			// TODO Video magic here
 		}
 	} else {
 		fmt.Println("can't recognize file type for copy")
@@ -282,7 +286,7 @@ func thumbnailCopyFile(source string, destination string, optDryRun bool) {
 		if optDryRun {
 			fmt.Println("Would thumbnail copy image", source, "to", destination)
 		} else {
-			// TODO Video magic here
+			resizeThumbnailImage(source, destination)
 		}
 	} else if isVideoFile(source) {
 		if optDryRun {
