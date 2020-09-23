@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/h2non/bimg"
 )
 
 // global defaults
@@ -100,17 +102,31 @@ func isEmptyDir(directory string) (isEmpty bool) {
 	return false
 }
 
-func isMediaFile(filename string) (isMedia bool) {
+func isVideoFile(filename string) bool {
 	switch filepath.Ext(strings.ToLower(filename)) {
-	case ".jpg", ".jpeg", ".heic", ".png", ".gif", ".tif":
-		return true
-	case ".cr2", ".raw", ".arw":
-		return true
 	case ".mp4", ".mov", ".3gp", ".avi", ".mts", ".m4v", ".mpg":
 		return true
 	default:
 		return false
 	}
+}
+
+func isImageFile(filename string) bool {
+	switch filepath.Ext(strings.ToLower(filename)) {
+	case ".jpg", ".jpeg", ".heic", ".png", ".gif", ".tif":
+		return true
+	case ".cr2", ".raw", ".arw":
+		return true
+	default:
+		return false
+	}
+}
+
+func isMediaFile(filename string) bool {
+	if isImageFile(filename) || isVideoFile(filename) {
+		return true
+	}
+	return false
 }
 
 func recurseDirectory(thisDirectory string, relativeDirectory string) (root directory) {
@@ -142,15 +158,11 @@ func compareDirectories(source *directory, gallery *directory, changes *int) {
 	for i, inputFile := range source.files {
 		for j, outputFile := range gallery.files {
 			if inputFile.name == outputFile.name {
-				fmt.Println("gallery exists:", gallery.files[j].absPath, gallery.files[j].exists)
 				gallery.files[j].exists = true
-				fmt.Println("after update:", gallery.files[j].modTime, source.files[i].modTime)
 				if !outputFile.modTime.Before(inputFile.modTime) {
 					source.files[i].exists = true
-					fmt.Println("outputfile not modified before inputfile:", inputFile.absPath)
 					*changes--
 				}
-				fmt.Println("")
 			}
 		}
 	}
@@ -227,19 +239,59 @@ func symlinkFile(source string, destination string, optDryRun bool) {
 	}
 }
 
+func thumbnailImage(source string, destination string) {
+	buffer, err := bimg.Read(source)
+	checkError(err)
+
+	newImage, err := bimg.NewImage(buffer).ResizeAndCrop(1920, 1080)
+	checkError(err)
+
+	bimg.Write(destination, newImage)
+}
+
+func fullsizeImage(source string, destination string) {
+	buffer, err := bimg.Read(source)
+	checkError(err)
+
+	newImage, err := bimg.NewImage(buffer).Thumbnail(150)
+	checkError(err)
+
+	bimg.Write(destination, newImage)
+}
+
 func fullsizeCopyFile(source string, destination string, optDryRun bool) {
-	if optDryRun {
-		fmt.Println("Would full-size copy", source, "to", destination)
+	if isImageFile(source) {
+		if optDryRun {
+			fmt.Println("Would full-size copy image", source, "to", destination)
+		} else {
+			// TODO Image magic here
+		}
+	} else if isVideoFile(source) {
+		if optDryRun {
+			fmt.Println("Would full-size copy video ", source, "to", destination)
+		} else {
+			// TODO Image magic here
+		}
 	} else {
-		// TODO MAGIC HAPPENS HERE
+		fmt.Println("can't recognize file type for copy")
 	}
 }
 
 func thumbnailCopyFile(source string, destination string, optDryRun bool) {
-	if optDryRun {
-		fmt.Println("Would thumbnail copy", source, "to", destination)
+	if isImageFile(source) {
+		if optDryRun {
+			fmt.Println("Would thumbnail copy image", source, "to", destination)
+		} else {
+			// TODO Video magic here
+		}
+	} else if isVideoFile(source) {
+		if optDryRun {
+			fmt.Println("Would thumbnail copy video ", source, "to", destination)
+		} else {
+			// TODO Video magic here
+		}
 	} else {
-		// TODO MAGIC HAPPENS HERE
+		fmt.Println("can't recognize file type for copy")
 	}
 }
 
