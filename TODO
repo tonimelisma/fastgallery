@@ -6,10 +6,11 @@ process
 5. delete old redundant gallery files (those that don't exist)
 
 backlog
-- make full-size and thumbnail creation concurrent
-- print progress indicator
+- autorotate pictures (start with bimgtest)
 
 release 2
+- print progress indicator
+- make full-size and thumbnail creation concurrent
 - check that each of symlink, fullsize and thumbnail exist
 
 hotfixes
