@@ -61,6 +61,10 @@ func parseArgs() (inputDirectory string, outputDirectory string, optDryRun bool)
 		os.Exit(1)
 	}
 
+	// add a parameter flag for this? warnings are useless as they don't provide the filename
+	// P.S. who the hell creates a library that pushes warnings to the console by default!?
+	os.Setenv("VIPS_WARNING", "0")
+
 	return *outputDirectoryPtr, flag.Args()[0], *optDryRunPtr
 }
 
@@ -154,14 +158,15 @@ func recurseDirectory(thisDirectory string, relativeDirectory string) (root dire
 	return (root)
 }
 
-func compareDirectories(source *directory, gallery *directory, changes *int) {
+func compareDirectories(source *directory, gallery *directory) (changes int) {
+	changes = 0
 	for i, inputFile := range source.files {
 		for j, outputFile := range gallery.files {
 			if inputFile.name == outputFile.name {
 				gallery.files[j].exists = true
 				if !outputFile.modTime.Before(inputFile.modTime) {
 					source.files[i].exists = true
-					*changes--
+					changes--
 				}
 			}
 		}
@@ -170,10 +175,11 @@ func compareDirectories(source *directory, gallery *directory, changes *int) {
 	for k, inputDir := range source.subdirectories {
 		for l, outputDir := range gallery.subdirectories {
 			if inputDir.name == outputDir.name {
-				compareDirectories(&(source.subdirectories[l]), &(gallery.subdirectories[k]), changes)
+				changes = changes + compareDirectories(&(source.subdirectories[l]), &(gallery.subdirectories[k]))
 			}
 		}
 	}
+	return changes
 }
 
 func countFiles(source directory, inputChanges int) (outputChanges int) {
@@ -234,6 +240,10 @@ func symlinkFile(source string, destination string, optDryRun bool) {
 	if optDryRun {
 		fmt.Println("Would link", source, "to", destination)
 	} else {
+		if _, err := os.Stat(destination); err == nil {
+			err := os.Remove(destination)
+			checkError(err)
+		}
 		err := os.Symlink(source, destination)
 		checkError(err)
 	}
@@ -253,14 +263,15 @@ func resizeFullsizeImage(source string, destination string) {
 	buffer, err := bimg.Read(source)
 	checkError(err)
 
-	var newImage []byte
 	bufferImageSize, err := bimg.Size(buffer)
 	ratio := bufferImageSize.Width / bufferImageSize.Height
 
-	newImage, err = bimg.NewImage(buffer).Resize(ratio*1080, 1080)
+	newImage, err := bimg.NewImage(buffer).Resize(ratio*1080, 1080)
 	checkError(err)
 
-	bimg.Write(destination, newImage)
+	newImage2, err := bimg.NewImage(newImage).AutoRotate()
+
+	bimg.Write(destination, newImage2)
 }
 
 func fullsizeCopyFile(source string, destination string, optDryRun bool) {
@@ -277,7 +288,7 @@ func fullsizeCopyFile(source string, destination string, optDryRun bool) {
 			// TODO Video magic here
 		}
 	} else {
-		fmt.Println("can't recognize file type for copy")
+		fmt.Println("can't recognize file type for copy", source)
 	}
 }
 
@@ -295,7 +306,7 @@ func thumbnailCopyFile(source string, destination string, optDryRun bool) {
 			// TODO Video magic here
 		}
 	} else {
-		fmt.Println("can't recognize file type for copy")
+		fmt.Println("can't recognize file type for copy", source)
 	}
 }
 
@@ -304,7 +315,6 @@ func cleanGallery(gallery directory, optDryRun bool) {
 		if !file.exists {
 			if optDryRun {
 				fmt.Println("Would delete", file.absPath)
-				fmt.Println(file)
 			} else {
 				err := os.Remove(file.absPath)
 				checkError(err)
@@ -354,26 +364,22 @@ func main() {
 
 	// check whether gallery already has up-to-date pictures of sources,
 	// mark existing pictures in structs
-	fmt.Println(changes, "new pictures to update")
 	for _, dir := range gallery.subdirectories {
 		if dir.name == optSymlinkDir {
-			compareDirectories(&source, &dir, &changes)
+			changes = changes + compareDirectories(&source, &dir)
 		}
 	}
 	for _, dir := range gallery.subdirectories {
 		if dir.name == optFullsizeDir {
-			compareDirectories(&source, &dir, &changes)
+			compareDirectories(&source, &dir)
 		}
 	}
 	for _, dir := range gallery.subdirectories {
 		if dir.name == optThumbnailDir {
-			compareDirectories(&source, &dir, &changes)
+			compareDirectories(&source, &dir)
 		}
 	}
 	fmt.Println(changes, "new pictures to update")
-	//fmt.Println(source)
-	fmt.Println("")
-	fmt.Println(gallery)
 	fmt.Println("")
 
 	// create the gallery
@@ -381,4 +387,5 @@ func main() {
 
 	// delete stale pictures
 	cleanGallery(gallery, optDryRun)
+	fmt.Println("Done!")
 }
