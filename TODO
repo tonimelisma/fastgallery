@@ -15,8 +15,3 @@ release 2
 hotfixes
 - how to quickly check emptiness of directory?
 - TODO go through all the todo stuff
-
-both exist
-source is newer than gallery -> update source (!source.exists), don't delete gallery (gallery.exists)
-gallery is newer than source -> don't update source (source.exists), don't delete gallery (gallery.exists)
-source and gallery are as new -> same as B
