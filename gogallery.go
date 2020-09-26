@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -58,6 +59,12 @@ func parseArgs() (inputDirectory string, outputDirectory string, optDryRun bool)
 
 	if isEmptyDir(flag.Args()[0]) {
 		fmt.Fprintf(os.Stderr, "%s: Input directory is empty: %s\n", os.Args[0], flag.Args()[0])
+		os.Exit(1)
+	}
+
+	_, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: Can't find ffmpeg in path\n", os.Args[0])
 		os.Exit(1)
 	}
 
@@ -249,11 +256,33 @@ func symlinkFile(source string, destination string, optDryRun bool) {
 	}
 }
 
+func resizeThumbnailVideo(source string, destination string) {
+	ffmpegCommand := exec.Command("ffmpeg", fmt.Sprintf("-y -i %s -ss 00:00:01 -vframes 1 -vf \"scale=200:200:force_original_aspect_ratio=increase,crop=200:200\" -loglevel error %s", source, destination))
+	ffmpegCommand.Stdout = os.Stdout
+	ffmpegCommand.Stderr = os.Stderr
+
+	err := ffmpegCommand.Run()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Could create thumbnail of video %s", source)
+	}
+}
+
+func resizeFullsizeVideo(source string, destination string) {
+	ffmpegCommand := exec.Command("ffmpeg", fmt.Sprintf("-y -i %s -vcodec h264 -acodec aac -movflags faststart -vf \"scale='min(640,iw)':'min(640,ih)':force_original_aspect_ratio=decrease\" -crf 18 -loglevel error %s", source, destination))
+	ffmpegCommand.Stdout = os.Stdout
+	ffmpegCommand.Stderr = os.Stderr
+
+	err := ffmpegCommand.Run()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Could create full-size video of %s", source)
+	}
+}
+
 func resizeThumbnailImage(source string, destination string) {
 	buffer, err := bimg.Read(source)
 	checkError(err)
 
-	newImage, err := bimg.NewImage(buffer).ResizeAndCrop(1920, 1080)
+	newImage, err := bimg.NewImage(buffer).Thumbnail(200)
 	checkError(err)
 
 	bimg.Write(destination, newImage)
@@ -285,7 +314,7 @@ func fullsizeCopyFile(source string, destination string, optDryRun bool) {
 		if optDryRun {
 			fmt.Println("Would full-size copy video ", source, "to", destination)
 		} else {
-			// TODO Video magic here
+			resizeFullsizeVideo(source, destination)
 		}
 	} else {
 		fmt.Println("can't recognize file type for copy", source)
@@ -303,7 +332,7 @@ func thumbnailCopyFile(source string, destination string, optDryRun bool) {
 		if optDryRun {
 			fmt.Println("Would thumbnail copy video ", source, "to", destination)
 		} else {
-			// TODO Video magic here
+			resizeThumbnailVideo(source, destination)
 		}
 	} else {
 		fmt.Println("can't recognize file type for copy", source)

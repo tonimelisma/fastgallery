@@ -9,6 +9,8 @@ backlog
 - print progress indicator
 
 release 2
+- Add 'force_divisible_by=2' to ffmpeg encoding (in next ffmpeg version)
+- Add logging to file, better error detection for bimg and ffmpeg
 - make full-size and thumbnail creation concurrent
 - check that each of symlink, fullsize and thumbnail exist
 
