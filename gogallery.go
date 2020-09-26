@@ -429,13 +429,18 @@ func main() {
 		}
 	}
 
-	progressBar := pb.StartNew(countChanges(source))
+	changes := countChanges(source)
+	if changes > 0 {
+		progressBar := pb.StartNew(changes)
 
-	// create the gallery
-	createGallery(source, source.name, gallery, progressBar, optDryRun)
-	progressBar.Finish()
+		// create the gallery
+		createGallery(source, source.name, gallery, progressBar, optDryRun)
+		progressBar.Finish()
 
-	fmt.Println("Gallery created! Cleaning up...")
+		fmt.Println("Gallery created! Cleaning up...")
+	} else {
+		fmt.Println("No changes! Cleaning up gallery...")
+	}
 	// delete stale pictures
 	cleanGallery(gallery, optDryRun)
 	fmt.Println("Done!")
