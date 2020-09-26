@@ -6,7 +6,7 @@ process
 5. delete old redundant gallery files (those that don't exist)
 
 backlog
-- print progress indicator
+- create html template
 
 release 2
 - Add 'force_divisible_by=2' to ffmpeg encoding (in next ffmpeg version)

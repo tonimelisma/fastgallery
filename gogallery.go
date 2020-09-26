@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cheggaaa/pb/v3"
 	"github.com/h2non/bimg"
 )
 
@@ -20,6 +21,10 @@ var optThumbnailDir = "Thumbnails"
 
 var optDirectoryMode os.FileMode = 0755
 var optFileMode os.FileMode = 0644
+
+var thumbnailExtension = ".jpg"
+var fullsizePictureExtension = ".jpg"
+var fullsizeVideoExtension = ".mp4"
 
 // this function parses command-line arguments
 func parseArgs() (inputDirectory string, outputDirectory string, optDryRun bool) {
@@ -165,15 +170,20 @@ func recurseDirectory(thisDirectory string, relativeDirectory string) (root dire
 	return (root)
 }
 
-func compareDirectories(source *directory, gallery *directory) (changes int) {
-	changes = 0
+func stripExtension(fullFilename string) (baseFilename string) {
+	extension := filepath.Ext(fullFilename)
+	return fullFilename[0 : len(fullFilename)-len(extension)]
+}
+
+func compareDirectories(source *directory, gallery *directory) {
 	for i, inputFile := range source.files {
+		inputFileBasename := stripExtension(inputFile.name)
 		for j, outputFile := range gallery.files {
-			if inputFile.name == outputFile.name {
+			outputFileBasename := stripExtension(outputFile.name)
+			if inputFileBasename == outputFileBasename {
 				gallery.files[j].exists = true
 				if !outputFile.modTime.Before(inputFile.modTime) {
 					source.files[i].exists = true
-					changes--
 				}
 			}
 		}
@@ -182,24 +192,28 @@ func compareDirectories(source *directory, gallery *directory) (changes int) {
 	for k, inputDir := range source.subdirectories {
 		for l, outputDir := range gallery.subdirectories {
 			if inputDir.name == outputDir.name {
-				changes = changes + compareDirectories(&(source.subdirectories[l]), &(gallery.subdirectories[k]))
+				compareDirectories(&(source.subdirectories[l]), &(gallery.subdirectories[k]))
 			}
 		}
 	}
-	return changes
 }
 
-func countFiles(source directory, inputChanges int) (outputChanges int) {
-	outputChanges = inputChanges + len(source.files)
+func countChanges(source directory) (outputChanges int) {
+	outputChanges = 0
+	for _, file := range source.files {
+		if !file.exists {
+			outputChanges++
+		}
+	}
 
 	for _, dir := range source.subdirectories {
-		outputChanges = countFiles(dir, outputChanges)
+		outputChanges = outputChanges + countChanges(dir)
 	}
 
 	return outputChanges
 }
 
-func createGallery(source directory, sourceRootDir string, gallery directory, optDryRun bool) {
+func createGallery(source directory, sourceRootDir string, gallery directory, progressBar *pb.ProgressBar, optDryRun bool) {
 	// Create directories if they don't exist
 	symlinkDirectoryPath := strings.Replace(filepath.Join(gallery.absPath, source.relPath, source.name), sourceRootDir, optSymlinkDir, 1)
 	createDirectory(symlinkDirectoryPath, optDryRun)
@@ -223,12 +237,14 @@ func createGallery(source directory, sourceRootDir string, gallery directory, op
 			// Create thumbnail
 			thumbnailFilePath := strings.Replace(filepath.Join(gallery.absPath, file.relPath), sourceRootDir, optThumbnailDir, 1)
 			thumbnailCopyFile(file.absPath, thumbnailFilePath, optDryRun)
+
+			progressBar.Increment()
 		}
 	}
 
 	// Recurse into each subdirectory to continue creating symlinks
 	for _, dir := range source.subdirectories {
-		createGallery(dir, sourceRootDir, gallery, optDryRun)
+		createGallery(dir, sourceRootDir, gallery, progressBar, optDryRun)
 	}
 }
 
@@ -257,7 +273,7 @@ func symlinkFile(source string, destination string, optDryRun bool) {
 }
 
 func resizeThumbnailVideo(source string, destination string) {
-	ffmpegCommand := exec.Command("ffmpeg", fmt.Sprintf("-y -i %s -ss 00:00:01 -vframes 1 -vf \"scale=200:200:force_original_aspect_ratio=increase,crop=200:200\" -loglevel error %s", source, destination))
+	ffmpegCommand := exec.Command("ffmpeg", "-y", "-i", source, "-ss", "00:00:01", "-vframes", "1", "-vf", "scale=200:200:force_original_aspect_ratio=increase,crop=200:200", "-loglevel", "error", destination)
 	ffmpegCommand.Stdout = os.Stdout
 	ffmpegCommand.Stderr = os.Stderr
 
@@ -268,7 +284,7 @@ func resizeThumbnailVideo(source string, destination string) {
 }
 
 func resizeFullsizeVideo(source string, destination string) {
-	ffmpegCommand := exec.Command("ffmpeg", fmt.Sprintf("-y -i %s -vcodec h264 -acodec aac -movflags faststart -vf \"scale='min(640,iw)':'min(640,ih)':force_original_aspect_ratio=decrease\" -crf 18 -loglevel error %s", source, destination))
+	ffmpegCommand := exec.Command("ffmpeg", "-y", "-i", source, "-vcodec", "h264", "-acodec", "aac", "-movflags", "faststart", "-vf", "scale='min(640,iw)':'min(640,ih)':force_original_aspect_ratio=decrease", "-crf", "18", "-loglevel", "error", destination)
 	ffmpegCommand.Stdout = os.Stdout
 	ffmpegCommand.Stderr = os.Stderr
 
@@ -285,7 +301,9 @@ func resizeThumbnailImage(source string, destination string) {
 	newImage, err := bimg.NewImage(buffer).Thumbnail(200)
 	checkError(err)
 
-	bimg.Write(destination, newImage)
+	newImage2, err := bimg.NewImage(newImage).AutoRotate()
+
+	bimg.Write(destination, newImage2)
 }
 
 func resizeFullsizeImage(source string, destination string) {
@@ -305,37 +323,41 @@ func resizeFullsizeImage(source string, destination string) {
 
 func fullsizeCopyFile(source string, destination string, optDryRun bool) {
 	if isImageFile(source) {
+		destination = stripExtension(destination) + fullsizePictureExtension
 		if optDryRun {
 			fmt.Println("Would full-size copy image", source, "to", destination)
 		} else {
 			resizeFullsizeImage(source, destination)
 		}
 	} else if isVideoFile(source) {
+		destination = stripExtension(destination) + fullsizeVideoExtension
 		if optDryRun {
 			fmt.Println("Would full-size copy video ", source, "to", destination)
 		} else {
 			resizeFullsizeVideo(source, destination)
 		}
 	} else {
-		fmt.Println("can't recognize file type for copy", source)
+		fmt.Println("can't recognize file type for full-size copy", source)
 	}
 }
 
 func thumbnailCopyFile(source string, destination string, optDryRun bool) {
 	if isImageFile(source) {
+		destination = stripExtension(destination) + thumbnailExtension
 		if optDryRun {
 			fmt.Println("Would thumbnail copy image", source, "to", destination)
 		} else {
 			resizeThumbnailImage(source, destination)
 		}
 	} else if isVideoFile(source) {
+		destination = stripExtension(destination) + thumbnailExtension
 		if optDryRun {
 			fmt.Println("Would thumbnail copy video ", source, "to", destination)
 		} else {
 			resizeThumbnailVideo(source, destination)
 		}
 	} else {
-		fmt.Println("can't recognize file type for copy", source)
+		fmt.Println("can't recognize file type for thumbnail copy", source)
 	}
 }
 
@@ -373,7 +395,6 @@ func main() {
 
 	var gallery directory
 	var source directory
-	var changes int
 
 	outputDirectory, inputDirectory, optDryRun = parseArgs()
 
@@ -389,13 +410,12 @@ func main() {
 	// create directory sructs by recursing through source and gallery directories
 	gallery = recurseDirectory(outputDirectory, "")
 	source = recurseDirectory(inputDirectory, "")
-	changes = countFiles(source, 0)
 
 	// check whether gallery already has up-to-date pictures of sources,
 	// mark existing pictures in structs
 	for _, dir := range gallery.subdirectories {
 		if dir.name == optSymlinkDir {
-			changes = changes + compareDirectories(&source, &dir)
+			compareDirectories(&source, &dir)
 		}
 	}
 	for _, dir := range gallery.subdirectories {
@@ -408,12 +428,14 @@ func main() {
 			compareDirectories(&source, &dir)
 		}
 	}
-	fmt.Println(changes, "new pictures to update")
-	fmt.Println("")
+
+	progressBar := pb.StartNew(countChanges(source))
 
 	// create the gallery
-	createGallery(source, source.name, gallery, optDryRun)
+	createGallery(source, source.name, gallery, progressBar, optDryRun)
+	progressBar.Finish()
 
+	fmt.Println("Gallery created! Cleaning up...")
 	// delete stale pictures
 	cleanGallery(gallery, optDryRun)
 	fmt.Println("Done!")
