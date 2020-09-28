@@ -13,13 +13,14 @@ N.B. deletes all unused media files in gallery directory
 ## Install
 
 For dependencies, on Ubuntu, install libvips42 and ffmpeg
-apt-get install libvips42 ffmpeg
+
+`apt-get install libvips42 ffmpeg`
 
 Image and video format support will depend on the support compiled in these libraries. For HEIC+HEVC support check out my PPA for a recompiled libvips42 (to be published...)
 
 ## Usage
 
-VIPS_WARNING=0 gogallery -o /var/www/html ~/Dropbox/Pictures
+`VIPS_WARNING=0 gogallery -o /var/www/html ~/Dropbox/Pictures`
 
 ## Backlog
 
