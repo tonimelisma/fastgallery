@@ -1,23 +1,41 @@
 # gogallery - Static photo gallery generator
 
+Creates a static gallery of your photo and video library.
+
+- Super fast (100% Go, concurrent, uses fastest image/video libraries, 4-8 times faster than others)
 - Both photo and video support
 - Deals with any file formats (ncluding HEIC, HEVC)
 - Only updates changed files
 - Uses relative paths (safe for subdirectories or S3)
 
-N.B. deletes all unused media files in output directory
+N.B. deletes all unused media files in gallery directory
 
 ## Install
 
-Ubuntu
-apt-get install libvips42
+For dependencies, on Ubuntu, install libvips42 and ffmpeg
+apt-get install libvips42 ffmpeg
+
+Image and video format support will depend on the support compiled in these libraries. For HEIC+HEVC support check out my PPA for a recompiled libvips42 (to be published...)
 
 ## Usage
 
 VIPS_WARNING=0 gogallery -o /var/www/html ~/Dropbox/Pictures
 
-## FAQ
+## Backlog
 
-Why do I need to set the VIPS_WARNING environment variable to suppress warnings?
+Before 0.1 beta release, still to do:
+- HTML templates
+- CSS
+- Rudimentary lightbox JS
+- Clean up half-finished thumbnail/fullsize/symlink if program is halted midway
+- Use all of thumb/full/symlink in detecting changes required
+- Packaging for Ubuntu
+- Set up Ubuntu repository (Github? PPA?)
 
-Unfortunately the excellent bimg image manipulation library doesn't have full support for the underlying VIPS library and doesn't have capabilities to properly manage its logging. See issue XXX
+Other stuff on the roadmap:
+- Allow copying instead of symlinking originals
+- Lots of options / config file to tweak defaults
+- Patch bimg library so it doesn't log to console without VIPS_WARNING
+- Add logging to file, better bimg and ffmpeg error handling, when to panic
+- Add 'force_divisible_by=2' to ffmpeg encoding (when feature is available in next ffmpeg release)
+- Go through the rest of the minor annoyances (TODOs in code)
