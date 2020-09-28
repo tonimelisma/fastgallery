@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
+	"text/template"
 	"time"
 
 	"github.com/cheggaaa/pb/v3"
@@ -15,16 +17,51 @@ import (
 )
 
 // global defaults
-var optSymlinkDir = "Original"
-var optFullsizeDir = "Pictures"
-var optThumbnailDir = "Thumbnails"
+const optSymlinkDir = "Original"
+const optFullsizeDir = "Pictures"
+const optThumbnailDir = "Thumbnails"
+const optHTMLDir = "Gallery"
 
-var optDirectoryMode os.FileMode = 0755
-var optFileMode os.FileMode = 0644
+const optDirectoryMode os.FileMode = 0755
+const optFileMode os.FileMode = 0644
 
-var thumbnailExtension = ".jpg"
-var fullsizePictureExtension = ".jpg"
-var fullsizeVideoExtension = ".mp4"
+const thumbnailExtension = ".jpg"
+const fullsizePictureExtension = ".jpg"
+const fullsizeVideoExtension = ".mp4"
+
+const videoWorkerPoolSize = 2
+const imageWorkerPoolSize = 5
+
+// templates
+const rawTemplate = `<!DOCTYPE html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8">
+<title>{{ .Title }}</title>
+<!--<link rel="stylesheet" href="css/style.css">-->
+<!--lightbox here-->
+ </head>
+ <body>
+	{{range .Subdirectories}}
+	  <a href="{{ .Name }}">
+		<div class="icon">
+		{{range .Thumbnails}}
+		  <img src="{{ . }}">
+		{{end}}
+		</div>
+	  </a>
+	{{end}}
+	{{range .Files}}
+	  <a fullsize href="{{ .Fullsize }}">
+	    <div class="icon">
+		  <img thumbnail src="{{ .Thumbnail }}" original alt="{{ .Original }}">
+
+		</div>
+	  </a>
+	{{end}}
+ </body>
+</html>
+`
 
 // this function parses command-line arguments
 func parseArgs() (inputDirectory string, outputDirectory string, optDryRun bool) {
@@ -75,7 +112,7 @@ func parseArgs() (inputDirectory string, outputDirectory string, optDryRun bool)
 
 	// add a parameter flag for this? warnings are useless as they don't provide the filename
 	// P.S. who the hell creates a library that pushes warnings to the console by default!?
-	os.Setenv("VIPS_WARNING", "0")
+	os.Setenv("VIPS_WARNING", "FALSE")
 
 	return *outputDirectoryPtr, flag.Args()[0], *optDryRunPtr
 }
@@ -99,6 +136,27 @@ type directory struct {
 	modTime        time.Time
 	subdirectories []directory
 	files          []file
+}
+
+// struct used to fill in data for each html page
+type htmlData struct {
+	Title          string
+	Subdirectories []struct {
+		Name       string
+		Thumbnails []string
+	}
+	Files []struct {
+		Filename  string
+		Thumbnail string
+		Fullsize  string
+		Original  string
+	}
+}
+
+// struct used to send jobs to workers via channels
+type job struct {
+	source      string
+	destination string
 }
 
 func checkError(e error) {
@@ -213,38 +271,108 @@ func countChanges(source directory) (outputChanges int) {
 	return outputChanges
 }
 
-func createGallery(source directory, sourceRootDir string, gallery directory, progressBar *pb.ProgressBar, optDryRun bool) {
+func createGallery(source directory, sourceRootDir string, gallery directory, fullsizeImageJobs chan job, thumbnailImageJobs chan job, fullsizeVideoJobs chan job, thumbnailVideoJobs chan job, optDryRun bool) {
 	// Create directories if they don't exist
-	symlinkDirectoryPath := strings.Replace(filepath.Join(gallery.absPath, source.relPath, source.name), sourceRootDir, optSymlinkDir, 1)
-	createDirectory(symlinkDirectoryPath, optDryRun)
-
 	fullsizeDirectoryPath := strings.Replace(filepath.Join(gallery.absPath, source.relPath, source.name), sourceRootDir, optFullsizeDir, 1)
 	createDirectory(fullsizeDirectoryPath, optDryRun)
 
 	thumbnailDirectoryPath := strings.Replace(filepath.Join(gallery.absPath, source.relPath, source.name), sourceRootDir, optThumbnailDir, 1)
 	createDirectory(thumbnailDirectoryPath, optDryRun)
 
+	symlinkDirectoryPath := strings.Replace(filepath.Join(gallery.absPath, source.relPath, source.name), sourceRootDir, optSymlinkDir, 1)
+	createDirectory(symlinkDirectoryPath, optDryRun)
+
+	htmlDirectoryPath := strings.Replace(filepath.Join(gallery.absPath, source.relPath, source.name), sourceRootDir, optHTMLDir, 1)
+	createDirectory(htmlDirectoryPath, optDryRun)
+
 	for _, file := range source.files {
 		if !file.exists {
-			// Symlink each file
-			symlinkFilePath := strings.Replace(filepath.Join(gallery.absPath, file.relPath), sourceRootDir, optSymlinkDir, 1)
-			symlinkFile(file.absPath, symlinkFilePath, optDryRun)
-
 			// Create full-size copy
 			fullsizeFilePath := strings.Replace(filepath.Join(gallery.absPath, file.relPath), sourceRootDir, optFullsizeDir, 1)
-			fullsizeCopyFile(file.absPath, fullsizeFilePath, optDryRun)
+			fullsizeCopyFile(file.absPath, fullsizeFilePath, fullsizeImageJobs, fullsizeVideoJobs, optDryRun)
 
 			// Create thumbnail
 			thumbnailFilePath := strings.Replace(filepath.Join(gallery.absPath, file.relPath), sourceRootDir, optThumbnailDir, 1)
-			thumbnailCopyFile(file.absPath, thumbnailFilePath, optDryRun)
+			thumbnailCopyFile(file.absPath, thumbnailFilePath, thumbnailImageJobs, thumbnailVideoJobs, optDryRun)
 
-			progressBar.Increment()
+			// Symlink each file
+			symlinkFilePath := strings.Replace(filepath.Join(gallery.absPath, file.relPath), sourceRootDir, optSymlinkDir, 1)
+			symlinkFile(file.absPath, symlinkFilePath, optDryRun)
 		}
 	}
 
 	// Recurse into each subdirectory to continue creating symlinks
 	for _, dir := range source.subdirectories {
-		createGallery(dir, sourceRootDir, gallery, progressBar, optDryRun)
+		createGallery(dir, sourceRootDir, gallery, fullsizeImageJobs, thumbnailImageJobs, fullsizeVideoJobs, thumbnailVideoJobs, optDryRun)
+	}
+
+	createHTML(source.subdirectories, source.files, sourceRootDir, htmlDirectoryPath, optDryRun)
+}
+
+func getHTMLRelPath(originalRelPath string, newRootDir string, sourceRootDir string, folderThumbnail bool) (thumbnailRelPath string) {
+	// Calculate relative path to know how many /../ we need to put into URL to get to root of Gallery
+	directoryList := strings.Split(originalRelPath, "/")
+	// Substract filename from length
+	// HTML files have file thumbnails, pictures and links and folder thumbnails - the latter
+	// are one level deeper but linked on the same level, thus the hack below
+	var directoryDepth int
+	if folderThumbnail {
+		directoryDepth = len(directoryList) - 2
+	} else {
+		directoryDepth = len(directoryList) - 1
+	}
+	var escapeStringArray []string
+	for j := 0; j < directoryDepth; j++ {
+		escapeStringArray = append(escapeStringArray, "..")
+	}
+
+	return filepath.Join(strings.Join(escapeStringArray, "/"), strings.Replace(originalRelPath, sourceRootDir, newRootDir, 1))
+}
+
+func createHTML(subdirectories []directory, files []file, sourceRootDir string, htmlDirectoryPath string, optDryRun bool) {
+	htmlFilePath := filepath.Join(htmlDirectoryPath, "index.html")
+
+	var data htmlData
+
+	data.Title = filepath.Base(htmlDirectoryPath)
+	for _, dir := range subdirectories {
+		var thumbnails []string
+		// Link four first thumbnails to folder image
+		for i := 0; i < len(dir.files) && i < 4; i++ {
+			thumbnailRelURL := getHTMLRelPath(dir.files[i].relPath, optThumbnailDir, sourceRootDir, true)
+			thumbnails = append(thumbnails, thumbnailRelURL)
+		}
+
+		data.Subdirectories = append(data.Subdirectories, struct {
+			Name       string
+			Thumbnails []string
+		}{Name: dir.name, Thumbnails: thumbnails})
+	}
+	for _, file := range files {
+
+		data.Files = append(data.Files, struct {
+			Filename  string
+			Thumbnail string
+			Fullsize  string
+			Original  string
+		}{Filename: file.name, Thumbnail: getHTMLRelPath(file.relPath, optThumbnailDir, sourceRootDir, false), Fullsize: getHTMLRelPath(file.relPath, optFullsizeDir, sourceRootDir, false), Original: getHTMLRelPath(file.relPath, optSymlinkDir, sourceRootDir, false)})
+	}
+
+	if optDryRun {
+		fmt.Println("Would create HTML:", htmlFilePath)
+	} else {
+		cookedTemplate, err := template.New("index").Parse(rawTemplate)
+		checkError(err)
+
+		htmlFileHandle, err := os.Create(htmlFilePath)
+		checkError(err)
+		defer htmlFileHandle.Close()
+
+		err = cookedTemplate.Execute(htmlFileHandle, data)
+		checkError(err)
+
+		htmlFileHandle.Sync()
+		htmlFileHandle.Close()
 	}
 }
 
@@ -273,7 +401,7 @@ func symlinkFile(source string, destination string, optDryRun bool) {
 }
 
 func resizeThumbnailVideo(source string, destination string) {
-	ffmpegCommand := exec.Command("ffmpeg", "-y", "-i", source, "-ss", "00:00:01", "-vframes", "1", "-vf", "scale=200:200:force_original_aspect_ratio=increase,crop=200:200", "-loglevel", "error", destination)
+	ffmpegCommand := exec.Command("ffmpeg", "-y", "-i", source, "-ss", "00:00:01", "-vframes", "1", "-vf", "scale=200:200:force_original_aspect_ratio=increase,crop=200:200", "-loglevel", "fatal", destination)
 	ffmpegCommand.Stdout = os.Stdout
 	ffmpegCommand.Stderr = os.Stderr
 
@@ -284,7 +412,7 @@ func resizeThumbnailVideo(source string, destination string) {
 }
 
 func resizeFullsizeVideo(source string, destination string) {
-	ffmpegCommand := exec.Command("ffmpeg", "-y", "-i", source, "-vcodec", "h264", "-acodec", "aac", "-movflags", "faststart", "-vf", "scale='min(640,iw)':'min(640,ih)':force_original_aspect_ratio=decrease", "-crf", "18", "-loglevel", "error", destination)
+	ffmpegCommand := exec.Command("ffmpeg", "-y", "-i", source, "-pix_fmt", "yuv420p", "-vcodec", "libx264", "-acodec", "aac", "-movflags", "faststart", "-r", "24", "-vf", "scale='min(640,iw)':'min(640,ih)':force_original_aspect_ratio=decrease", "-crf", "28", "-loglevel", "fatal", destination)
 	ffmpegCommand.Stdout = os.Stdout
 	ffmpegCommand.Stderr = os.Stderr
 
@@ -320,41 +448,82 @@ func resizeFullsizeImage(source string, destination string) {
 
 	bimg.Write(destination, newImage2)
 }
+func fullsizeImageWorker(wg *sync.WaitGroup, imageJobs chan job, progressBar *pb.ProgressBar) {
+	defer wg.Done()
+	for job := range imageJobs {
+		resizeFullsizeImage(job.source, job.destination)
+		progressBar.Increment()
+	}
+}
 
-func fullsizeCopyFile(source string, destination string, optDryRun bool) {
+func fullsizeVideoWorker(wg *sync.WaitGroup, videoJobs chan job, progressBar *pb.ProgressBar) {
+	defer wg.Done()
+	for job := range videoJobs {
+		resizeFullsizeVideo(job.source, job.destination)
+		progressBar.Increment()
+	}
+}
+
+func fullsizeCopyFile(source string, destination string, fullsizeImageJobs chan job, fullsizeVideoJobs chan job, optDryRun bool) {
 	if isImageFile(source) {
 		destination = stripExtension(destination) + fullsizePictureExtension
 		if optDryRun {
 			fmt.Println("Would full-size copy image", source, "to", destination)
 		} else {
-			resizeFullsizeImage(source, destination)
+			var imageJob job
+			imageJob.source = source
+			imageJob.destination = destination
+			fullsizeImageJobs <- imageJob
 		}
 	} else if isVideoFile(source) {
 		destination = stripExtension(destination) + fullsizeVideoExtension
 		if optDryRun {
 			fmt.Println("Would full-size copy video ", source, "to", destination)
 		} else {
-			resizeFullsizeVideo(source, destination)
+			var videoJob job
+			videoJob.source = source
+			videoJob.destination = destination
+			fullsizeVideoJobs <- videoJob
 		}
 	} else {
 		fmt.Println("can't recognize file type for full-size copy", source)
 	}
 }
 
-func thumbnailCopyFile(source string, destination string, optDryRun bool) {
+func thumbnailImageWorker(wg *sync.WaitGroup, thumbnailImageJobs chan job) {
+	defer wg.Done()
+	for job := range thumbnailImageJobs {
+		resizeThumbnailImage(job.source, job.destination)
+	}
+}
+
+func thumbnailVideoWorker(wg *sync.WaitGroup, thumbnailVideoJobs chan job) {
+	defer wg.Done()
+	for job := range thumbnailVideoJobs {
+		resizeThumbnailVideo(job.source, job.destination)
+	}
+}
+
+func thumbnailCopyFile(source string, destination string, thumbnailImageJobs chan job, thumbnailVideoJobs chan job, optDryRun bool) {
 	if isImageFile(source) {
 		destination = stripExtension(destination) + thumbnailExtension
 		if optDryRun {
 			fmt.Println("Would thumbnail copy image", source, "to", destination)
 		} else {
-			resizeThumbnailImage(source, destination)
+			var imageJob job
+			imageJob.source = source
+			imageJob.destination = destination
+			thumbnailImageJobs <- imageJob
 		}
 	} else if isVideoFile(source) {
 		destination = stripExtension(destination) + thumbnailExtension
 		if optDryRun {
 			fmt.Println("Would thumbnail copy video ", source, "to", destination)
 		} else {
-			resizeThumbnailVideo(source, destination)
+			var videoJob job
+			videoJob.source = source
+			videoJob.destination = destination
+			thumbnailVideoJobs <- videoJob
 		}
 	} else {
 		fmt.Println("can't recognize file type for thumbnail copy", source)
@@ -396,6 +565,7 @@ func main() {
 	var gallery directory
 	var source directory
 
+	// parse command-line args and set HTML template ready
 	outputDirectory, inputDirectory, optDryRun = parseArgs()
 
 	fmt.Println(os.Args[0], ": Creating photo gallery")
@@ -433,15 +603,41 @@ func main() {
 	if changes > 0 {
 		progressBar := pb.StartNew(changes)
 
-		// create the gallery
-		createGallery(source, source.name, gallery, progressBar, optDryRun)
-		progressBar.Finish()
+		fullsizeImageJobs := make(chan job, 100000)
+		thumbnailImageJobs := make(chan job, 100000)
+		fullsizeVideoJobs := make(chan job, 100000)
+		thumbnailVideoJobs := make(chan job, 100000)
 
-		fmt.Println("Gallery created! Cleaning up...")
+		var wg sync.WaitGroup
+
+		for i := 1; i <= imageWorkerPoolSize; i++ {
+			wg.Add(2)
+			go fullsizeImageWorker(&wg, fullsizeImageJobs, progressBar)
+			go thumbnailImageWorker(&wg, thumbnailImageJobs)
+		}
+
+		for i := 1; i <= videoWorkerPoolSize; i++ {
+			wg.Add(2)
+			go fullsizeVideoWorker(&wg, fullsizeVideoJobs, progressBar)
+			go thumbnailVideoWorker(&wg, thumbnailVideoJobs)
+		}
+
+		// create the gallery
+		createGallery(source, source.name, gallery, fullsizeImageJobs, thumbnailImageJobs, fullsizeVideoJobs, thumbnailVideoJobs, optDryRun)
+
+		close(fullsizeImageJobs)
+		close(fullsizeVideoJobs)
+		close(thumbnailImageJobs)
+		close(thumbnailVideoJobs)
+		wg.Wait()
+
+		progressBar.Finish()
+		fmt.Println("Gallery created!")
 	} else {
-		fmt.Println("No changes! Cleaning up gallery...")
+		fmt.Println("No pictures to update!")
 	}
 	// delete stale pictures
+	fmt.Println("Cleaning up...")
 	cleanGallery(gallery, optDryRun)
 	fmt.Println("Done!")
 }

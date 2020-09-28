@@ -6,12 +6,14 @@ process
 5. delete old redundant gallery files (those that don't exist)
 
 backlog
-- create html template
+- prettier HTML template
+- CSS
+- Javascript
 
 release 2
-- Add 'force_divisible_by=2' to ffmpeg encoding (in next ffmpeg version)
+- Add 'force_divisible_by=2' to ffmpeg encoding (in next ffmpeg version when released)
 - Add logging to file, better error detection for bimg and ffmpeg
-- make full-size and thumbnail creation concurrent
+- Patch bimg to not send warnings on console
 - check that each of symlink, fullsize and thumbnail exist
 
 hotfixes
