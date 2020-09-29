@@ -28,6 +28,7 @@ Before 0.1 beta release, still to do:
 - HTML templates
 - CSS
 - Rudimentary lightbox JS
+- Add triangle overlay on video thumbnails to indicate video
 - Clean up half-finished thumbnail/fullsize/symlink if program is halted midway
 - Use all of thumb/full/symlink in detecting changes required
 - Packaging for Ubuntu
