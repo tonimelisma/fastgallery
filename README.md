@@ -12,11 +12,11 @@ N.B. deletes all unused media files in gallery directory
 
 ## Install
 
-For dependencies, on Ubuntu, install libvips42 and ffmpeg
+For dependencies, on Ubuntu, install libvips42 and ffmpeg (if you need video support)
 
 `apt-get install libvips42 ffmpeg`
 
-Image and video format support will depend on the support compiled in these libraries. For HEIC+HEVC support check out my PPA for a recompiled libvips42 (to be published...)
+Image and video format support will depend on the support compiled in these libraries. For HEIC+HEVC support check out my PPA for a recompiled libvips42 for Ubuntu (to be published...)
 
 ## Usage
 
