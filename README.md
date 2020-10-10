@@ -24,7 +24,7 @@ Image and video format support will depend on the support compiled in these libr
 
 ## Backlog
 
-Before 0.1 beta release, still to do:
+Before 0.1 Alpha release, still to do:
 - HTML templates
 - CSS
 - Rudimentary lightbox JS
@@ -33,6 +33,11 @@ Before 0.1 beta release, still to do:
 - Use all of thumb/full/symlink in detecting changes required
 - Packaging for Ubuntu
 - Set up Ubuntu repository (Github? PPA?)
+
+Before 0.1 Beta release:
+- Clean function names
+- Refactor functions into internal packages
+- Create unit tests (blargh)
 
 Other stuff on the roadmap:
 - Allow copying instead of symlinking originals
