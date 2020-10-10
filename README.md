@@ -25,10 +25,11 @@ Image and video format support will depend on the support compiled in these libr
 ## Backlog
 
 Before 0.1 Alpha release, still to do:
+- Convert thumbnail and full-size pictures
+- Add triangle overlay on video thumbnails to indicate video
 - HTML templates
 - CSS
 - Rudimentary lightbox JS
-- Add triangle overlay on video thumbnails to indicate video
 - Clean up half-finished thumbnail/fullsize/symlink if program is halted midway
 - Use all of thumb/full/symlink in detecting changes required
 

@@ -428,6 +428,8 @@ func resizeThumbnailVideo(source string, destination string) {
 	ffmpegCommand.Stdout = os.Stdout
 	ffmpegCommand.Stderr = os.Stderr
 
+	// TODO overlay triangle to thumbnail to implicate it's video instead of image
+
 	err := ffmpegCommand.Run()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Could create thumbnail of video %s", source)
@@ -452,6 +454,8 @@ func resizeThumbnailImage(source string, destination string) {
 	newImage, err := bimg.NewImage(buffer).Thumbnail(200)
 	checkError(err)
 
+	// TODO actually convert the image
+
 	newImage2, err := bimg.NewImage(newImage).AutoRotate()
 
 	bimg.Write(destination, newImage2)
@@ -463,6 +467,8 @@ func resizeFullsizeImage(source string, destination string) {
 
 	bufferImageSize, err := bimg.Size(buffer)
 	ratio := bufferImageSize.Width / bufferImageSize.Height
+
+	// TODO actually convert the image
 
 	newImage, err := bimg.NewImage(buffer).Resize(ratio*1080, 1080)
 	checkError(err)
