@@ -48,16 +48,15 @@ const rawTemplate = `<!DOCTYPE html>
 	  <a href="{{ .Name }}">
 		<div class="icon">
 		{{range .Thumbnails}}
-		  <img src="{{ . }}">
+		  <img src="{{ . }}" width="50%">
 		{{end}}
 		</div>
 	  </a>
 	{{end}}
 	{{range .Files}}
-	  <a fullsize href="{{ .Fullsize }}">
+	  <a href="{{ .Fullsize }}">
 	    <div class="icon">
-		  <img thumbnail src="{{ .Thumbnail }}" original alt="{{ .Original }}">
-
+		  <img src="{{ .Thumbnail }}" original alt="{{ .Original }}">
 		</div>
 	  </a>
 	{{end}}
@@ -330,9 +329,9 @@ func getHTMLRelPath(originalRelPath string, newRootDir string, sourceRootDir str
 	// are one level deeper but linked on the same level, thus the hack below
 	var directoryDepth int
 	if folderThumbnail {
-		directoryDepth = len(directoryList) - 2
+		directoryDepth = len(directoryList) - 3
 	} else {
-		directoryDepth = len(directoryList) - 1
+		directoryDepth = len(directoryList) - 2
 	}
 	var escapeStringArray []string
 	for j := 0; j < directoryDepth; j++ {
@@ -352,7 +351,7 @@ func createHTML(subdirectories []directory, files []file, sourceRootDir string, 
 		var thumbnails []string
 		// Link four first thumbnails to folder image
 		for i := 0; i < len(dir.files) && i < 4; i++ {
-			thumbnailRelURL := getHTMLRelPath(dir.files[i].relPath, optThumbnailDir, sourceRootDir, true)
+			thumbnailRelURL := getHTMLRelPath(stripExtension(dir.files[i].relPath)+thumbnailExtension, optThumbnailDir, sourceRootDir, true)
 			thumbnails = append(thumbnails, thumbnailRelURL)
 		}
 
@@ -362,13 +361,24 @@ func createHTML(subdirectories []directory, files []file, sourceRootDir string, 
 		}{Name: dir.name, Thumbnails: thumbnails})
 	}
 	for _, file := range files {
+		if isImageFile(file.absPath) {
+			data.Files = append(data.Files, struct {
+				Filename  string
+				Thumbnail string
+				Fullsize  string
+				Original  string
+			}{Filename: file.name, Thumbnail: getHTMLRelPath(stripExtension(file.relPath)+thumbnailExtension, optThumbnailDir, sourceRootDir, false), Fullsize: getHTMLRelPath(stripExtension(file.relPath)+fullsizePictureExtension, optFullsizeDir, sourceRootDir, false), Original: getHTMLRelPath(file.relPath, optSymlinkDir, sourceRootDir, false)})
+		} else if isVideoFile(file.absPath) {
+			data.Files = append(data.Files, struct {
+				Filename  string
+				Thumbnail string
+				Fullsize  string
+				Original  string
+			}{Filename: file.name, Thumbnail: getHTMLRelPath(stripExtension(file.relPath)+thumbnailExtension, optThumbnailDir, sourceRootDir, false), Fullsize: getHTMLRelPath(stripExtension(file.relPath)+fullsizeVideoExtension, optFullsizeDir, sourceRootDir, false), Original: getHTMLRelPath(file.relPath, optSymlinkDir, sourceRootDir, false)})
+		} else {
+			fmt.Println("can't create thumbnail in HTML for file", file.absPath)
 
-		data.Files = append(data.Files, struct {
-			Filename  string
-			Thumbnail string
-			Fullsize  string
-			Original  string
-		}{Filename: file.name, Thumbnail: getHTMLRelPath(file.relPath, optThumbnailDir, sourceRootDir, false), Fullsize: getHTMLRelPath(file.relPath, optFullsizeDir, sourceRootDir, false), Original: getHTMLRelPath(file.relPath, optSymlinkDir, sourceRootDir, false)})
+		}
 	}
 
 	if optDryRun {
