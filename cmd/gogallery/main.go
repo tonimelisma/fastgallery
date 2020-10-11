@@ -173,7 +173,6 @@ func checkError(e error) {
 }
 
 func isEmptyDir(directory string) (isEmpty bool) {
-	// TODO figure out a faster way to check if directory is empty
 	list, err := ioutil.ReadDir(directory)
 	checkError(err)
 
@@ -448,34 +447,46 @@ func resizeFullsizeVideo(source string, destination string) {
 }
 
 func resizeThumbnailImage(source string, destination string) {
+	// TODO converge all three operations into one
 	buffer, err := bimg.Read(source)
 	checkError(err)
 
 	newImage, err := bimg.NewImage(buffer).Thumbnail(200)
 	checkError(err)
 
-	// TODO actually convert the image
-
 	newImage2, err := bimg.NewImage(newImage).AutoRotate()
+	checkError(err)
 
-	bimg.Write(destination, newImage2)
+	if thumbnailExtension == ".jpeg" {
+		newImage3, err := bimg.NewImage(newImage2).Convert(bimg.JPEG)
+		checkError(err)
+		bimg.Write(destination, newImage3)
+	} else {
+		fmt.Fprintf(os.Stderr, "Can't figure out what format to convert image to: %s\n", destination)
+	}
 }
 
 func resizeFullsizeImage(source string, destination string) {
+	// TODO converge all three operations into one
 	buffer, err := bimg.Read(source)
 	checkError(err)
 
 	bufferImageSize, err := bimg.Size(buffer)
 	ratio := bufferImageSize.Width / bufferImageSize.Height
 
-	// TODO actually convert the image
-
 	newImage, err := bimg.NewImage(buffer).Resize(ratio*1080, 1080)
 	checkError(err)
 
 	newImage2, err := bimg.NewImage(newImage).AutoRotate()
+	checkError(err)
 
-	bimg.Write(destination, newImage2)
+	if fullsizePictureExtension == ".jpeg" {
+		newImage3, err := bimg.NewImage(newImage2).Convert(bimg.JPEG)
+		checkError(err)
+		bimg.Write(destination, newImage3)
+	} else {
+		fmt.Fprintf(os.Stderr, "Can't figure out what format to convert image to: %s\n", destination)
+	}
 }
 
 func fullsizeImageWorker(wg *sync.WaitGroup, imageJobs chan job, progressBar *pb.ProgressBar) {
