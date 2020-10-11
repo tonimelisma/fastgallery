@@ -462,7 +462,7 @@ func resizeThumbnailImage(source string, destination string) {
 		checkError(err)
 		bimg.Write(destination, newImage3)
 	} else {
-		fmt.Fprintf(os.Stderr, "Can't figure out what format to convert image to: %s\n", destination)
+		fmt.Fprintf(os.Stderr, "Can't figure out what format to convert thumbnail image to: %s\n", destination)
 	}
 }
 
@@ -485,7 +485,7 @@ func resizeFullsizeImage(source string, destination string) {
 		checkError(err)
 		bimg.Write(destination, newImage3)
 	} else {
-		fmt.Fprintf(os.Stderr, "Can't figure out what format to convert image to: %s\n", destination)
+		fmt.Fprintf(os.Stderr, "Can't figure out what format to convert full size image to: %s\n", destination)
 	}
 }
 
