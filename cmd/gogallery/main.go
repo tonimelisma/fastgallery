@@ -33,6 +33,7 @@ const imageWorkerPoolSize = 5
 
 var optIgnoreVideos = false
 var optDryRun = false
+var optCleanUp = false
 
 // templates
 const rawTemplate = `<!DOCTYPE html>
@@ -68,6 +69,7 @@ const rawTemplate = `<!DOCTYPE html>
 func parseArgs() (inputDirectory string, outputDirectory string) {
 	outputDirectoryPtr := flag.String("o", ".", "Output root directory for gallery")
 	optIgnoreVideosPtr := flag.Bool("v", false, "Ignore video files")
+	optCleanUpPtr := flag.Bool("c", false, "Clean up - delete stale media files from output directory")
 	optDryRunPtr := flag.Bool("d", false, "Dry run - don't make changes, only explain what would be done")
 
 	flag.Usage = func() {
@@ -109,6 +111,10 @@ func parseArgs() (inputDirectory string, outputDirectory string) {
 
 	if *optDryRunPtr {
 		optDryRun = true
+	}
+
+	if *optCleanUpPtr {
+		optCleanUp = true
 	}
 
 	if *optIgnoreVideosPtr {
@@ -704,8 +710,11 @@ func main() {
 	} else {
 		fmt.Println("No pictures to update!")
 	}
-	// delete stale pictures
-	fmt.Println("\nCleaning up...")
-	cleanGallery(gallery)
+
+	if optCleanUp {
+		fmt.Println("\nCleaning up unused media files in output directory...")
+		cleanGallery(gallery)
+	}
+
 	fmt.Println("\nDone!")
 }
