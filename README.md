@@ -27,9 +27,6 @@ Image and video format support will depend on the support compiled in these libr
 Before 0.1 Alpha release, still to do:
 - Convert thumbnail and full-size pictures
 - Add triangle overlay on video thumbnails to indicate video
-- HTML templates
-- CSS
-- Rudimentary lightbox JS
 - Clean up half-finished thumbnail/fullsize/symlink if program is halted midway
 - Use all of thumb/full/symlink in detecting changes required
 
@@ -39,6 +36,8 @@ Before 0.1 Beta release:
 - Create unit tests (blargh)
 - Packaging for Ubuntu
 - Set up Ubuntu repository (Github? PPA?)
+- Finger swiping for web frontend
+- Arrow key navigation for web frontend
 
 Other stuff on the roadmap:
 - Allow copying instead of symlinking originals

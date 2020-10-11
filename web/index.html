@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>%%TITLE%%</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="gogallery.css">
+    <!-- <script src="gogallery.js"></script> -->
+</head>
+
+<body>
+    <div class="folders">
+        <!-- TODO -->
+        <a href="temp2">
+            <div class="folder">
+                <img src="_thumbnails/temp2/2018-10-14 15.59.20.jpg" alt="diipadaapa" class="folder">
+                <img src="_thumbnails/temp2/2018-11-25 20.59.17.jpg" alt="diipadaapa" class="folder">
+                <img src="_thumbnails/temp2/2018-11-25 20.59.21.jpg" alt="diipadaapa" class="folder">
+                <img src="_thumbnails/temp2/2018-11-25 20.59.46.jpg" alt="diipadaapa" class="folder">
+                <span>temp2</span>
+            </div>
+        </a>
+    </div>
+
+    <div class="images">
+        <div class="image" onclick="changePicture(0);displayModal(true);">
+            <img src="_thumbnails/2018-03-31 16.48.28.jpg" alt="2018-03-31 16.48.28.jpg" class="image">
+            <span class="image">2018-03-31 16.48.28.jpg</span>
+        </div>
+        <div class="image" onclick="changePicture(1);displayModal(true);">
+            <img src="_thumbnails/2018-07-16 17.28.12 -000.jpg" alt="2018-03-31 16.48.28.jpg" class="image">
+            <span class="image">2018-07-16 17.28.12 -000.jpg</span>
+        </div>
+        <div class="image" onclick="changePicture(2);displayModal(true);">
+            <img src="_thumbnails/2018-11-10 12.36.05.jpg" alt="2018-11-10 16.48.28.jpg" class="image">
+            <span class="image">2018-07-16 17.28.12 -000.jpg</span>
+        </div>
+    </div>
+
+    <!-- TODO make modal navigation way smaller and nicer looking -->
+    <div id="modal">
+        <div class="modalClose" onclick="displayModal(false);">
+            <svg width="100" height="100">
+                <polygon points="15,25 25,15 50,40 75,15 85,25 60,50 85,75 75,85 50,60 25,85 15,75 40,50" style="fill:gray;" />
+            </svg>
+        </div>
+        <div class="modalPrev" onclick="prevPicture();">
+            <svg width="80" height="100">
+                <polygon points="10,50 70,10 70,90" style="fill:gray;" />
+            </svg>
+        </div>
+        <img id="modalPicture">
+        <div class="modalNext" onclick="nextPicture();">
+            <svg width="80" height="100">
+                <polygon points="70,50 10,10 10,90" style="fill:gray;" />
+            </svg>
+        </div>
+    </div>
+
+    <script>
+        const pictures = [{
+            thumbnail: "_thumbnails/2018-03-31 16.48.28.jpg",
+            fullsize: "_pictures/2018-03-31 16.48.28.jpg",
+            original: "_original/2018-03-31 16.48.28.jpg"
+        }, {
+            thumbnail: "_thumbnails/2018-07-16 17.28.12 -000.jpg",
+            fullsize: "_pictures/2018-07-16 17.28.12 -000.mp4",
+            original: "_original/2018-07-16 17.28.12 -000.jpg"
+        }, {
+            thumbnail: "_thumbnails/2018-11-10 12.36.05.jpg",
+            fullsize: "_pictures/2018-11-10 12.36.05.jpg",
+            original: "_original/2018-11-10 12.36.05.jpg"
+        }]
+
+        var currentPicture
+
+        const displayModal = (display) => {
+            if (display) {
+                document.getElementById("modal").style.display = "flex"
+            } else {
+                document.getElementById("modal").style.display = "none"
+                window.location.hash = ""
+            }
+        }
+
+        // TODO add swipe support https://stackoverflow.com/questions/2264072/detect-a-finger-swipe-through-javascript-on-the-iphone-and-android
+        // TODO add arrow key navigation support
+
+        const prevPicture = () => {
+            if (!isNaN(currentPicture)) {
+                if (currentPicture === 0) {
+                    changePicture(pictures.length - 1)
+                } else if (currentPicture < 0 || currentPicture >= pictures.length) {
+                    console.error("Invalid currentPicture, 0.." + pictures.length - 1 + ": " + currentPicture)
+                } else {
+                    changePicture(currentPicture - 1)
+                }
+            } else {
+                console.error("Invalid currentPicture, NaN: " + currentPicture)
+            }
+        }
+
+        const nextPicture = () => {
+            if (!isNaN(currentPicture)) {
+                if (currentPicture === pictures.length - 1) {
+                    changePicture(0)
+                } else if (currentPicture < 0 || currentPicture >= pictures.length) {
+                    console.error("Invalid currentPicture, 0.." + pictures.length - 1 + ": " + currentPicture)
+                } else {
+                    changePicture(currentPicture + 1)
+                }
+            } else {
+                console.error("Invalid currentPicture, NaN: " + currentPicture)
+            }
+        }
+
+        const changePicture = (number) => {
+            thumbnailFilename = pictures[number].thumbnail
+            window.location.hash = thumbnailFilename.substring(thumbnailFilename.indexOf("/") + 1)
+            document.getElementById("modalPicture").src = pictures[number].fullsize
+            document.getElementById("modalPicture").alt = pictures[number].fullsize.substring(pictures[number].fullsize.indexOf("/") + 1)
+            currentPicture = number
+        }
+
+        const hashNavigate = () => {
+            if (window.location.hash) {
+                const thumbnail = decodeURIComponent(window.location.hash.substring(1))
+                id = pictures.findIndex(item => item.thumbnail.substring(item.thumbnail.indexOf("/") + 1) == thumbnail)
+                if (id != -1 && id >= 0 && id < pictures.length) {
+                    changePicture(id)
+                    displayModal(true)
+                } else {
+                    console.error("Invalid thumbnail link provided after # in URI")
+                }
+            }
+        }
+
+        window.onload = hashNavigate
+    </script>
+
+</body>
+
+</html>

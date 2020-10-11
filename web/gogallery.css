@@ -1,0 +1,114 @@
+body {
+    background-color: black;
+}
+
+#modal {
+    display: none;
+    justify-content: center;
+    align-items: center;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    position: fixed;
+    z-index: 1;
+    background-color: rgba(0, 0, 0, 1);
+}
+
+
+/* TODO add nicer gray colors, dependency to thumbnail background color */
+
+#modalPicture {
+    max-height: 100%;
+    max-width: 100%;
+    display: block;
+    margin: auto;
+}
+
+
+/* TODO add hover and click animations for modal buttons, cursor: pointer etc */
+
+.modalClose {
+    position: absolute;
+    top: 0%;
+    right: 0%;
+    width: 100px;
+    height: 100px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modalPrev {
+    position: absolute;
+    top: 50%;
+    left: 0%;
+    width: 100px;
+    height: 100px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modalNext {
+    position: absolute;
+    top: 50%;
+    right: 0%;
+    width: 100px;
+    height: 100px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modalClose:hover,
+.modalClose:focus,
+.modalPrev:hover,
+.modalPrev:focus,
+.modalNext:hover,
+.modalNext:focus {
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+div.folder {
+    width: 125px;
+    height: 125px;
+    /*font-size: 0;*/
+    display: inline-block;
+}
+
+img.folder {
+    width: 50px;
+    height: 50px;
+}
+
+div.image {
+    width: 125px;
+    height: 125px;
+    /*font-size: 0;*/
+    display: inline-block;
+}
+
+img.image {
+    width: 100px;
+    height: 100px;
+    display: block;
+    margin: auto;
+}
+
+span.image {
+    display: block;
+    margin: auto;
+}
+
+
+/*img.preload {
+    display: none
+}*/
+
+span {
+    font-size: 0.8em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+}
