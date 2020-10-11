@@ -2,13 +2,13 @@
 
 Creates a static gallery of your photo and video library.
 
-- Super fast (100% Go, concurrent, uses fastest image/video libraries, 4-8 times faster than others)
+- Super fast (written completely in Go, concurrent, uses fastest image/video libraries, 4-8 times faster than others)
 - Both photo and video support
 - Deals with any file formats (ncluding HEIC, HEVC)
 - Only updates changed files, runs incrementally
-- Uses relative paths (safe for subdirectories or S3)
+- Uses relative paths (safe for using in subdirectory or S3)
 
-N.B. deletes all unused media files in gallery directory
+*Please note that gogallery is still pre-alpha, I am actively working on it*
 
 ## Install
 
