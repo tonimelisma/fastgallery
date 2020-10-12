@@ -12,11 +12,19 @@ Creates a static gallery of your photo and video library.
 
 ## Install
 
+### MacOS
+
+For dependencies, use Homebrew to install:
+
+`brew install vips ffmpeg`
+
+### Ubuntu Linux
+
 For dependencies, on Ubuntu, install libvips42 and ffmpeg (if you need video support)
 
 `apt-get install libvips42 ffmpeg`
 
-Image and video format support will depend on the support compiled in these libraries. For HEIC+HEVC support check out my PPA for a recompiled libvips42 for Ubuntu (to be published...)
+Image and video format support will depend on the support compiled in these libraries. Standard Ubuntu libraries don't include HEIC or HEVC support. Check out my PPA for a recompiled libvips42 for Ubuntu (to be published...)
 
 ## Usage
 

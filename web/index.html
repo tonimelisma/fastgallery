@@ -10,14 +10,16 @@
 </head>
 
 <body>
+    <h1>%%TITLE%%</h1>
+
     <div class="folders">
         <!-- TODO -->
         <a href="temp2">
             <div class="folder">
-                <img src="_thumbnails/temp2/2018-10-14 15.59.20.jpg" alt="diipadaapa" class="folder">
-                <img src="_thumbnails/temp2/2018-11-25 20.59.17.jpg" alt="diipadaapa" class="folder">
-                <img src="_thumbnails/temp2/2018-11-25 20.59.21.jpg" alt="diipadaapa" class="folder">
-                <img src="_thumbnails/temp2/2018-11-25 20.59.46.jpg" alt="diipadaapa" class="folder">
+                <div class="folderThumbnail">
+                    <img src="_thumbnails/temp2/2018-10-14 15.59.20.jpg" alt="diipadaapa" class="folder"><img src="_thumbnails/temp2/2018-11-25 20.59.17.jpg" alt="diipadaapa" class="folder"><img src="_thumbnails/temp2/2018-11-25 20.59.21.jpg" alt="diipadaapa"
+                        class="folder"><img src="_thumbnails/temp2/2018-11-25 20.59.46.jpg" alt="diipadaapa" class="folder">
+                </div>
                 <span>temp2</span>
             </div>
         </a>
@@ -42,7 +44,8 @@
     <div id="modal">
         <div class="modalClose" onclick="displayModal(false);">
             <svg width="100" height="100">
-                <polygon points="15,25 25,15 50,40 75,15 85,25 60,50 85,75 75,85 50,60 25,85 15,75 40,50" style="fill:gray;" />
+                <polygon points="15,25 25,15 50,40 75,15 85,25 60,50 85,75 75,85 50,60 25,85 15,75 40,50"
+                    style="fill:gray;" />
             </svg>
         </div>
         <div class="modalPrev" onclick="prevPicture();">

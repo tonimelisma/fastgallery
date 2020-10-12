@@ -1,5 +1,18 @@
 body {
-    background-color: black;
+    background-color: #eeeeee;
+    color: black;
+    margin-left: 10%;
+    margin-right: 10%;
+    font-family: sans-serif;
+}
+
+h1 {
+    text-align: center;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
 }
 
 #modal {
@@ -12,11 +25,8 @@ body {
     height: 100%;
     position: fixed;
     z-index: 1;
-    background-color: rgba(0, 0, 0, 1);
+    background-color: rgba(238, 238, 238, 1);
 }
-
-
-/* TODO add nicer gray colors, dependency to thumbnail background color */
 
 #modalPicture {
     max-height: 100%;
@@ -71,32 +81,35 @@ body {
 }
 
 div.folder {
-    width: 125px;
-    height: 125px;
-    /*font-size: 0;*/
+    width: 250px;
+    height: 250px;
     display: inline-block;
+    text-align: center;
 }
 
-img.folder {
-    width: 50px;
-    height: 50px;
-}
-
-div.image {
-    width: 125px;
-    height: 125px;
-    /*font-size: 0;*/
-    display: inline-block;
-}
-
-img.image {
-    width: 100px;
-    height: 100px;
+div.folderThumbnail {
+    width: 200px;
+    height: 200px;
     display: block;
     margin: auto;
 }
 
-span.image {
+img.folder {
+    width: 100px;
+    height: 100px;
+    display: inline-block;
+}
+
+div.image {
+    width: 250px;
+    height: 250px;
+    display: inline-block;
+    text-align: center;
+}
+
+img.image {
+    width: 200px;
+    height: 200px;
     display: block;
     margin: auto;
 }
@@ -107,7 +120,6 @@ span.image {
 }*/
 
 span {
-    font-size: 0.8em;
     text-overflow: ellipsis;
     white-space: nowrap;
     overflow: hidden;
