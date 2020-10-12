@@ -1,4 +1,4 @@
-module github.com/tonimelisma/gogallery
+module github.com/tonimelisma/fastgallery
 
 go 1.15
 

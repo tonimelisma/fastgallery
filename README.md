@@ -1,4 +1,4 @@
-# gogallery - Static photo gallery generator
+# fastgallery - Static photo gallery generator
 
 Creates a static gallery of your photo and video library.
 
@@ -8,7 +8,7 @@ Creates a static gallery of your photo and video library.
 - Only updates changed files, runs incrementally
 - Uses relative paths (safe for using in subdirectory or S3)
 
-*Please note that gogallery is still pre-alpha, I am actively working on it*
+*Please note that fastgallery is still pre-alpha, I am actively working on it*
 
 ## Install
 
@@ -28,7 +28,7 @@ Image and video format support will depend on the support compiled in these libr
 
 ## Usage
 
-`VIPS_WARNING=0 gogallery -o /var/www/html ~/Dropbox/Pictures`
+`VIPS_WARNING=0 fastgallery -o /var/www/html ~/Dropbox/Pictures`
 
 ## Backlog
 
