@@ -1,5 +1,7 @@
 # fastgallery - Static photo gallery generator
 
+[![Build Status](https://travis-ci.com/tonimelisma/fastgallery.svg?branch=master)](https://travis-ci.com/tonimelisma/fastgallery)
+
 Creates a static gallery of your photo and video library.
 
 - Super fast (written completely in Go, concurrent, uses fastest image/video libraries, 4-8 times faster than others)

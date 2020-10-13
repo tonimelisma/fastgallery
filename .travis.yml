@@ -3,6 +3,9 @@ language: go
 go:
 - 1.15.2
 
+env:
+  - CGO_CFLAGS_ALLOW="-Xpreprocessor"
+
 addons:
   apt:
     packages:
