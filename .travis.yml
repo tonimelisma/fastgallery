@@ -3,10 +3,6 @@ language: go
 go:
 - 1.15.2
 
-os:
-  - linux
-  - osx
-
 addons:
   apt:
     packages:
