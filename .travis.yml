@@ -2,3 +2,7 @@ language: go
 
 go:
 - 1.15.2
+
+before_install: 
+  - sudo apt update
+  - sudo apt -y install libvips-dev
