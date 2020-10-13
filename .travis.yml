@@ -1,9 +1,23 @@
 language: go
-dist: focal
 
 go:
 - 1.15.2
 
-before_install: 
-  - sudo apt update
-  - sudo apt -y install libvips-dev
+os:
+  - linux
+  - osx
+
+addons:
+  apt:
+    packages:
+      - libvips-dev
+  homebrew:
+    packages:
+      - vips
+
+jobs:
+  include:
+    - os: linux
+      dist: focal
+    - os: osx
+      osx_image: xcode12.2
