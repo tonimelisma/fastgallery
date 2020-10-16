@@ -22,11 +22,15 @@ For dependencies, use Homebrew to install:
 
 ### Ubuntu Linux
 
-For dependencies, on Ubuntu, install libvips42 and ffmpeg (if you need video support)
+If you want HEIF support, be sure to first add my PPA with updated libvips42 packages:
+
+`sudo add-apt-repository ppa:tonimelisma/ppa`
+
+Then, for dependencies, install libvips42 for images and optionally ffmpeg (if you need video support)
 
 `apt-get install libvips42 ffmpeg`
 
-Image and video format support will depend on the support compiled in these libraries. Standard Ubuntu libraries don't include HEIC or HEVC support. Check out my PPA for a recompiled libvips42 for Ubuntu (to be published...)
+Image and video format support will depend on the support compiled in these libraries.
 
 ## Usage
 
