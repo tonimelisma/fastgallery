@@ -4,7 +4,7 @@
 
 Creates a static gallery of your photo and video library.
 
-- Super fast (written completely in Go, concurrent, uses fastest image/video libraries, 4-8 times faster than others)
+- Super fast (written in Go and C, concurrent, uses fastest image/video libraries, 4-8 times faster than others)
 - Both photo and video support
 - Deals with any file formats (ncluding HEIC, HEVC)
 - Only updates changed files, runs incrementally
@@ -26,11 +26,9 @@ If you want HEIF support, be sure to first add my PPA with updated libvips42 pac
 
 `sudo add-apt-repository ppa:tonimelisma/ppa`
 
-Then, for dependencies, install libvips42 for images and optionally ffmpeg (if you need video support)
+Then, for dependencies, install libvips42 for images and optionally ffmpeg (if you need video support):
 
 `apt-get install libvips42 ffmpeg`
-
-Image and video format support will depend on the support compiled in these libraries.
 
 ## Usage
 
