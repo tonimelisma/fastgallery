@@ -35,24 +35,27 @@ Image and video format support will depend on the support compiled in these libr
 ## Backlog
 
 Before 0.1 Alpha release, still to do:
-- Convert thumbnail and full-size pictures
+- Finalize web frontend so it looks sleek
+- Optimize image conversion from three steps into one
 - Add triangle overlay on video thumbnails to indicate video
-- Clean up half-finished thumbnail/fullsize/symlink if program is halted midway
-- Use all of thumb/full/symlink in detecting changes required
 
 Before 0.1 Beta release:
-- Clean function names
+- Use all of thumb/full/symlink in detecting changes required
+- Patch bimg library so it doesn't log to console without VIPS_WARNING (https://github.com/h2non/bimg/issues/355)
+- Clean function and variable names
 - Refactor functions into internal packages
 - Create unit tests (blargh)
-- Packaging for Ubuntu
-- Set up Ubuntu repository (Github? PPA?)
-- Finger swiping for web frontend
-- Arrow key navigation for web frontend
+- Check if half-finished thumbnail/fullsize images/videos create corrupt files if program is interrupted
+
+Before 0.1 final release:
+- Packaging for Ubuntu in my PPA
+- Packaging for Homebrew / MacOS
 
 Other stuff on the roadmap:
+- Finger swiping for web frontend
+- Arrow key navigation for web frontend
 - Allow copying instead of symlinking originals
 - Lots of options / config file to tweak defaults
-- Patch bimg library so it doesn't log to console without VIPS_WARNING (https://github.com/h2non/bimg/issues/355)
-- Add logging to file, better bimg and ffmpeg error handling, when to panic
+- Add logging to file, better bimg and ffmpeg error handling, flag to panic on warnings
 - Add 'force_divisible_by=2' to ffmpeg encoding (when feature is available in next ffmpeg release)
 - Go through the rest of the minor annoyances (TODOs in code)
