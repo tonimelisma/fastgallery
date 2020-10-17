@@ -174,7 +174,7 @@ type job struct {
 
 func checkError(e error) {
 	if e != nil {
-		panic(e)
+		fmt.Fprintln(os.Stderr, "Error:", e)
 	}
 }
 
@@ -452,21 +452,65 @@ func resizeFullsizeVideo(source string, destination string) {
 	}
 }
 
-func resizeThumbnailImage(source string, destination string) {
-	// TODO converge all three operations into one
-	buffer, err := bimg.Read(source)
+func autoRotateImage(input []byte) *bimg.Image {
+	image := bimg.NewImage(input)
+
+	metadata, err := image.Metadata()
 	checkError(err)
 
-	newImage, err := bimg.NewImage(buffer).Thumbnail(200)
+	_, err = image.Convert(bimg.JPEG)
 	checkError(err)
 
-	newImage2, err := bimg.NewImage(newImage).AutoRotate()
-	checkError(err)
-
-	if thumbnailExtension == ".jpeg" {
-		newImage3, err := bimg.NewImage(newImage2).Convert(bimg.JPEG)
+	switch metadata.EXIF.Orientation {
+	case 2:
+		_, err := image.Flip()
 		checkError(err)
-		bimg.Write(destination, newImage3)
+	case 3:
+		_, err := image.Rotate(180)
+		checkError(err)
+	case 4:
+		_, err := image.Flip()
+		checkError(err)
+		_, err = image.Rotate(180)
+		checkError(err)
+	case 5:
+		_, err := image.Flip()
+		checkError(err)
+		_, err = image.Rotate(90)
+		checkError(err)
+	case 6:
+		_, err = image.Rotate(180)
+		checkError(err)
+	case 7:
+		_, err := image.Flip()
+		checkError(err)
+		_, err = image.Rotate(270)
+		checkError(err)
+	case 8:
+		_, err := image.Rotate(270)
+		checkError(err)
+	case 1:
+	default:
+	}
+
+	return image
+}
+
+func resizeThumbnailImage(source string, destination string) {
+	if thumbnailExtension == ".jpg" {
+		buffer, err := bimg.Read(source)
+		checkError(err)
+
+		image := autoRotateImage(buffer)
+
+		_, err = image.Thumbnail(200)
+		// 280 x 210
+		checkError(err)
+
+		newImage, err := image.Convert(bimg.JPEG)
+		checkError(err)
+
+		bimg.Write(destination, newImage)
 	} else {
 		fmt.Fprintf(os.Stderr, "Can't figure out what format to convert thumbnail image to: %s\n", destination)
 	}
@@ -474,19 +518,19 @@ func resizeThumbnailImage(source string, destination string) {
 
 func resizeFullsizeImage(source string, destination string) {
 	// TODO converge all three operations into one
-	buffer, err := bimg.Read(source)
-	checkError(err)
+	if fullsizePictureExtension == ".jpg" {
+		buffer, err := bimg.Read(source)
+		checkError(err)
 
-	bufferImageSize, err := bimg.Size(buffer)
-	ratio := bufferImageSize.Width / bufferImageSize.Height
+		bufferImageSize, err := bimg.Size(buffer)
+		ratio := bufferImageSize.Width / bufferImageSize.Height
 
-	newImage, err := bimg.NewImage(buffer).Resize(ratio*1080, 1080)
-	checkError(err)
+		newImage, err := bimg.NewImage(buffer).Resize(ratio*1080, 1080)
+		checkError(err)
 
-	newImage2, err := bimg.NewImage(newImage).AutoRotate()
-	checkError(err)
+		newImage2, err := bimg.NewImage(newImage).AutoRotate()
+		checkError(err)
 
-	if fullsizePictureExtension == ".jpeg" {
 		newImage3, err := bimg.NewImage(newImage2).Convert(bimg.JPEG)
 		checkError(err)
 		bimg.Write(destination, newImage3)
