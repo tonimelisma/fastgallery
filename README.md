@@ -1,9 +1,6 @@
-# fastgallery - Static photo gallery generator
+# fastgallery [![Build Status](https://travis-ci.org/tonimelisma/fastgallery.svg?branch=master)](https://travis-ci.org/tonimelisma/fastgallery) [![Go Report Card](http://goreportcard.com/badge/tonimelisma/fastgallery)](http://goreportcard.com/report/tonimelisma/fastgallery) [![Coverage Status](https://coveralls.io/repos/github/tonimelisma/fastgallery/badge.svg?branch=master)](https://coveralls.io/github/tonimelisma/fastgallery?branch=master) ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/tonimelisma/fastgallery) ![License](https://img.shields.io/badge/license-MIT-blue.svg) 
 
-[![Build Status](https://travis-ci.com/tonimelisma/fastgallery.svg?branch=master)](https://travis-ci.com/tonimelisma/fastgallery)
-
-Creates a static gallery of your photo and video library.
-
+## Fast static photo and video gallery generator
 - Super fast (written in Go and C, concurrent, uses fastest image/video libraries, 4-8 times faster than others)
 - Both photo and video support
 - Deals with any file formats (ncluding HEIC, HEVC)
