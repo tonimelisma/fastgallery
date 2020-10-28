@@ -454,6 +454,7 @@ func resizeFullsizeVideo(source string, destination string) {
 
 func resizeThumbnailImage(source string, destination string) {
 	if thumbnailExtension == ".jpg" {
+		// TODO replace bimg with govips
 		buffer, err := bimg.Read(source)
 		checkError(err)
 
@@ -475,6 +476,7 @@ func resizeThumbnailImage(source string, destination string) {
 
 func resizeFullsizeImage(source string, destination string) {
 	if fullsizePictureExtension == ".jpg" {
+		// TODO replace bimg with govips
 		buffer, err := bimg.Read(source)
 		checkError(err)
 
