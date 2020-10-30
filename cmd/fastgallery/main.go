@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/cheggaaa/pb/v3"
-	"github.com/h2non/bimg"
+	"github.com/davidbyttow/govips/v2/vips"
 )
 
 // global defaults
@@ -27,6 +27,11 @@ const optFileMode os.FileMode = 0644
 const thumbnailExtension = ".jpg"
 const fullsizePictureExtension = ".jpg"
 const fullsizeVideoExtension = ".mp4"
+
+const thumbnailWidth = 280
+const thumbnailHeight = 210
+const fullsizeMaxWidth = 1920
+const fullsizeMaxHeight = 1080
 
 const videoWorkerPoolSize = 2
 const imageWorkerPoolSize = 5
@@ -329,7 +334,7 @@ func createGallery(source directory, sourceRootDir string, gallery directory, fu
 func getHTMLRelPath(originalRelPath string, newRootDir string, sourceRootDir string, folderThumbnail bool) (thumbnailRelPath string) {
 	// Calculate relative path to know how many /../ we need to put into URL to get to root of Gallery
 	directoryList := strings.Split(originalRelPath, "/")
-	// Substract filename from length
+	// Subtract filename from length
 	// HTML files have file thumbnails, pictures and links and folder thumbnails - the latter
 	// are one level deeper but linked on the same level, thus the hack below
 	var directoryDepth int
@@ -454,21 +459,31 @@ func resizeFullsizeVideo(source string, destination string) {
 
 func resizeThumbnailImage(source string, destination string) {
 	if thumbnailExtension == ".jpg" {
-		// TODO replace bimg with govips
-		buffer, err := bimg.Read(source)
+		image, err := vips.NewImageFromFile(source)
 		checkError(err)
 
-		oldImage := bimg.NewImage(buffer)
-		_, err = oldImage.AutoRotate()
+		// Resize and crop picture to suitable
+		scale := float64(thumbnailWidth / image.Width())
+		if float64(image.Height())*scale < thumbnailHeight {
+			scale = float64(thumbnailHeight / image.Height())
+		}
+
+		err = image.Resize(scale, vips.KernelAuto)
 		checkError(err)
 
-		_, err = oldImage.Thumbnail(200)
+		if image.Height() > thumbnailHeight {
+			// TODO govips crop image
+			image.ExtractArea(0, 0, thumbnailWidth, thumbnailHeight)
+		}
+
+		err = image.AutoRotate()
 		checkError(err)
 
-		newImage, err := oldImage.Convert(bimg.JPEG)
+		imageBytes, _, err := image.Export(&vips.ExportParams{Format: vips.ImageTypeJPEG})
 		checkError(err)
 
-		bimg.Write(destination, newImage)
+		err = ioutil.WriteFile(destination, imageBytes, optFileMode)
+		checkError(err)
 	} else {
 		fmt.Fprintf(os.Stderr, "Can't figure out what format to convert thumbnail image to: %s\n", destination)
 	}
@@ -476,24 +491,25 @@ func resizeThumbnailImage(source string, destination string) {
 
 func resizeFullsizeImage(source string, destination string) {
 	if fullsizePictureExtension == ".jpg" {
-		// TODO replace bimg with govips
-		buffer, err := bimg.Read(source)
+		image, err := vips.NewImageFromFile(source)
 		checkError(err)
 
-		bufferImageSize, err := bimg.Size(buffer)
-		ratio := bufferImageSize.Width / bufferImageSize.Height
+		scale := float64(fullsizeMaxHeight / image.Height())
+		if image.Width() > fullsizeMaxWidth {
+			scale = float64(fullsizeMaxWidth / image.Width())
+		}
 
-		oldImage := bimg.NewImage(buffer)
-
-		_, err = oldImage.Resize(ratio*1080, 1080)
+		err = image.Resize(scale, vips.KernelAuto)
 		checkError(err)
 
-		_, err = oldImage.AutoRotate()
+		err = image.AutoRotate()
 		checkError(err)
 
-		newImage, err := oldImage.Convert(bimg.JPEG)
+		imageBytes, _, err := image.Export(&vips.ExportParams{Format: vips.ImageTypeJPEG})
 		checkError(err)
-		bimg.Write(destination, newImage)
+
+		err = ioutil.WriteFile(destination, imageBytes, optFileMode)
+		checkError(err)
 	} else {
 		fmt.Fprintf(os.Stderr, "Can't figure out what format to convert full size image to: %s\n", destination)
 	}
@@ -675,6 +691,7 @@ func main() {
 		var progressBar *pb.ProgressBar
 		if !optDryRun {
 			progressBar = pb.StartNew(changes)
+			vips.Startup(nil)
 		}
 
 		fullsizeImageJobs := make(chan job, 100000)
