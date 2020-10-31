@@ -462,22 +462,44 @@ func resizeThumbnailImage(source string, destination string) {
 		image, err := vips.NewImageFromFile(source)
 		checkError(err)
 
-		// Resize and crop picture to suitable
-		scale := float64(thumbnailWidth / image.Width())
-		if float64(image.Height())*scale < thumbnailHeight {
-			scale = float64(thumbnailHeight / image.Height())
-		}
-
-		err = image.Resize(scale, vips.KernelAuto)
-		checkError(err)
-
-		if image.Height() > thumbnailHeight {
-			// TODO govips crop image
-			image.ExtractArea(0, 0, thumbnailWidth, thumbnailHeight)
-		}
-
+		// TODO fix inefficiency, autorotate before resizing
+		// Needed for now to simplify thumbnailing calculations
 		err = image.AutoRotate()
 		checkError(err)
+
+		// Resize and crop picture to suitable
+		ratio := float64(image.Height()) / float64(image.Width())
+		targetRatio := float64(thumbnailHeight) / float64(thumbnailWidth)
+
+		if ratio < targetRatio {
+			// Picture is wider than thumbnail
+			// Resize by height to fit thumbnail size, then crop left and right edge
+			scale := float64(thumbnailHeight) / float64(image.Height())
+			err = image.Resize(scale, vips.KernelLinear)
+			checkError(err)
+
+			// Calculate how much to crop from each edge
+			cropAmount := (image.Width() - thumbnailWidth) / 2
+			err = image.ExtractArea(cropAmount, 0, thumbnailWidth, thumbnailHeight)
+			checkError(err)
+		} else if ratio > targetRatio {
+			// Picture is higher than thumbnail
+			// Resize by width to fit thumbnail size, then crop top and bottom edge
+			scale := float64(thumbnailWidth) / float64(image.Width())
+			err = image.Resize(scale, vips.KernelLinear)
+			checkError(err)
+
+			// Calculate how much to crop from each edge
+			cropAmount := (image.Height() - thumbnailHeight) / 2
+			err = image.ExtractArea(0, cropAmount, thumbnailWidth, thumbnailHeight)
+			checkError(err)
+		} else {
+			// Picture has same aspect ratio as thumbnail
+			// Resize, but no need to crop after resize
+			scale := float64(thumbnailWidth) / float64(image.Width())
+			err = image.Resize(scale, vips.KernelLinear)
+			checkError(err)
+		}
 
 		imageBytes, _, err := image.Export(&vips.ExportParams{Format: vips.ImageTypeJPEG})
 		checkError(err)
@@ -494,15 +516,15 @@ func resizeFullsizeImage(source string, destination string) {
 		image, err := vips.NewImageFromFile(source)
 		checkError(err)
 
-		scale := float64(fullsizeMaxHeight / image.Height())
-		if image.Width() > fullsizeMaxWidth {
-			scale = float64(fullsizeMaxWidth / image.Width())
-		}
-
-		err = image.Resize(scale, vips.KernelAuto)
+		err = image.AutoRotate()
 		checkError(err)
 
-		err = image.AutoRotate()
+		scale := float64(fullsizeMaxWidth) / float64(image.Width())
+		if (scale * float64(image.Height())) > float64(fullsizeMaxHeight) {
+			scale = float64(fullsizeMaxHeight) / float64(image.Height())
+		}
+
+		err = image.Resize(scale, vips.KernelLinear)
 		checkError(err)
 
 		imageBytes, _, err := image.Export(&vips.ExportParams{Format: vips.ImageTypeJPEG})
