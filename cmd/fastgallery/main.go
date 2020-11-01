@@ -434,7 +434,7 @@ func symlinkFile(source string, destination string) {
 }
 
 func resizeThumbnailVideo(source string, destination string) {
-	ffmpegCommand := exec.Command("ffmpeg", "-y", "-i", source, "-ss", "00:00:01", "-vframes", "1", "-vf", "scale=200:200:force_original_aspect_ratio=increase,crop=200:200", "-loglevel", "fatal", destination)
+	ffmpegCommand := exec.Command("ffmpeg", "-y", "-i", source, "-ss", "00:00:01", "-vframes", "1", "-vf", fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d", thumbnailWidth, thumbnailHeight, thumbnailWidth, thumbnailHeight), "-loglevel", "fatal", destination)
 	ffmpegCommand.Stdout = os.Stdout
 	ffmpegCommand.Stderr = os.Stderr
 
@@ -475,7 +475,7 @@ func resizeThumbnailImage(source string, destination string) {
 			// Picture is wider than thumbnail
 			// Resize by height to fit thumbnail size, then crop left and right edge
 			scale := float64(thumbnailHeight) / float64(image.Height())
-			err = image.Resize(scale, vips.KernelLinear)
+			err = image.Resize(scale, vips.KernelAuto)
 			checkError(err)
 
 			// Calculate how much to crop from each edge
@@ -486,7 +486,7 @@ func resizeThumbnailImage(source string, destination string) {
 			// Picture is higher than thumbnail
 			// Resize by width to fit thumbnail size, then crop top and bottom edge
 			scale := float64(thumbnailWidth) / float64(image.Width())
-			err = image.Resize(scale, vips.KernelLinear)
+			err = image.Resize(scale, vips.KernelAuto)
 			checkError(err)
 
 			// Calculate how much to crop from each edge
@@ -497,7 +497,7 @@ func resizeThumbnailImage(source string, destination string) {
 			// Picture has same aspect ratio as thumbnail
 			// Resize, but no need to crop after resize
 			scale := float64(thumbnailWidth) / float64(image.Width())
-			err = image.Resize(scale, vips.KernelLinear)
+			err = image.Resize(scale, vips.KernelAuto)
 			checkError(err)
 		}
 
@@ -524,7 +524,7 @@ func resizeFullsizeImage(source string, destination string) {
 			scale = float64(fullsizeMaxHeight) / float64(image.Height())
 		}
 
-		err = image.Resize(scale, vips.KernelLinear)
+		err = image.Resize(scale, vips.KernelAuto)
 		checkError(err)
 
 		imageBytes, _, err := image.Export(&vips.ExportParams{Format: vips.ImageTypeJPEG})
