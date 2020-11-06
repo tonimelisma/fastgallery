@@ -80,37 +80,38 @@ a {
     background-color: rgba(0, 0, 0, 0.5);
 }
 
+div.images {
+    display: grid;
+}
+
 div.folder {
     width: 250px;
     height: 250px;
-    display: inline-block;
     text-align: center;
 }
 
 div.folderThumbnail {
     width: 200px;
     height: 200px;
-    display: block;
+    display: grid;
+    grid-gap: 0px;
     margin: auto;
 }
 
 img.folder {
     width: 100px;
     height: 100px;
-    display: inline-block;
 }
 
 div.image {
     width: 250px;
     height: 250px;
-    display: inline-block;
     text-align: center;
 }
 
 img.image {
     width: 200px;
     height: 200px;
-    display: block;
     margin: auto;
 }
 
