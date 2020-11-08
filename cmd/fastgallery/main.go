@@ -501,7 +501,8 @@ func resizeThumbnailImage(source string, destination string) {
 			checkError(err)
 		}
 
-		imageBytes, _, err := image.Export(&vips.ExportParams{Format: vips.ImageTypeJPEG})
+		ep := vips.NewDefaultJPEGExportParams()
+		imageBytes, _, err := image.Export(ep)
 		checkError(err)
 
 		err = ioutil.WriteFile(destination, imageBytes, optFileMode)
@@ -527,7 +528,8 @@ func resizeFullsizeImage(source string, destination string) {
 		err = image.Resize(scale, vips.KernelAuto)
 		checkError(err)
 
-		imageBytes, _, err := image.Export(&vips.ExportParams{Format: vips.ImageTypeJPEG})
+		ep := vips.NewDefaultJPEGExportParams()
+		imageBytes, _, err := image.Export(ep)
 		checkError(err)
 
 		err = ioutil.WriteFile(destination, imageBytes, optFileMode)
