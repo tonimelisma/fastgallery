@@ -715,6 +715,7 @@ func main() {
 		var progressBar *pb.ProgressBar
 		if !optDryRun {
 			progressBar = pb.StartNew(changes)
+			vips.LoggingSettings(nil, vips.LogLevelMessage)
 			vips.Startup(nil)
 			defer vips.Shutdown()
 		}
