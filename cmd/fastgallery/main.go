@@ -716,6 +716,7 @@ func main() {
 		if !optDryRun {
 			progressBar = pb.StartNew(changes)
 			vips.Startup(nil)
+			defer vips.Shutdown()
 		}
 
 		fullsizeImageJobs := make(chan job, 100000)
