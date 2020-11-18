@@ -204,7 +204,7 @@ func isVideoFile(filename string) bool {
 
 func isImageFile(filename string) bool {
 	switch filepath.Ext(strings.ToLower(filename)) {
-	case ".jpg", ".jpeg", ".heic", ".png", ".gif", ".tif":
+	case ".jpg", ".jpeg", ".heic", ".png", ".gif", ".tif", ".tiff":
 		return true
 	case ".cr2", ".raw", ".arw":
 		return true
