@@ -1,5 +1,7 @@
-Thank you for considering helping out!!
+Thank you for considering helping out!
 
-I appreciate discussing possible patches/PRs in advance so we're aligned with the development roadmap.
+For bug fixes and minor stuff, just send a PR.
+
+For new functionality and larger changes, please open an issue first so we can discuss approach.
 
 Please create tests for any new functionality or bugs you fixed.
