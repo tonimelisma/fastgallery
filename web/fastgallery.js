@@ -9,6 +9,7 @@ var currentPicture
 // create hover effect shadow for all box elements
 const hoverOnBox = (event) => {
     event.target.classList.remove("box-shadow")
+    event.target.classList.remove("border-gray")
     event.target.classList.add("box-shadow-large")
     event.target.classList.add("border-gray-dark")
 }
@@ -17,6 +18,7 @@ const hoverOffBox = (event) => {
     event.target.classList.remove("border-gray-dark")
     event.target.classList.remove("box-shadow-large")
     event.target.classList.add("box-shadow")
+    event.target.classList.add("border-gray")
 }
 
 const registerBoxEventHandlers = (element) => {
