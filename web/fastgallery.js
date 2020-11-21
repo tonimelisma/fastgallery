@@ -3,7 +3,10 @@ if (typeof pictures == 'undefined') {
     throw new Error("pictures array not defined")
 }
 
-// global variable maintains currently shown picture
+// Hard-coded configuration
+const videoExtension = "mp4"
+
+// global variable maintains currently shown picture number (pictures[] array)
 var currentPicture
 
 // create hover effect shadow for all box elements
@@ -48,14 +51,31 @@ const displayModal = (display) => {
 // TODO add arrow key navigation support
 
 // modal previous and next picture button logic
+const preload = (number) => {
+    var preloadLink = document.createElement("link")
+    preloadLink.rel = "prefetch"
+    preloadLink.href = pictures[number].fullsize
+    const fileExtension = preloadLink.href.split("\.").pop()
+    if (fileExtension == videoExtension) {
+        preloadLink.as = "video"
+    } else {
+        preloadLink.as = "image"
+    }
+    document.head.appendChild(preloadLink)
+}
 const prevPicture = () => {
+    changePicture(getPrevPicture())
+    preload(getPrevPicture())
+}
+
+const getPrevPicture = () => {
     if (!isNaN(currentPicture)) {
         if (currentPicture === 0) {
-            changePicture(pictures.length - 1)
+            return (pictures.length - 1)
         } else if (currentPicture < 0 || currentPicture >= pictures.length) {
             console.error("Invalid currentPicture, 0.." + pictures.length - 1 + ": " + currentPicture)
         } else {
-            changePicture(currentPicture - 1)
+            return (currentPicture - 1)
         }
     } else {
         console.error("Invalid currentPicture, NaN: " + currentPicture)
@@ -63,13 +83,18 @@ const prevPicture = () => {
 }
 
 const nextPicture = () => {
+    changePicture(getNextPicture())
+    preload(getNextPicture())
+}
+
+const getNextPicture = () => {
     if (!isNaN(currentPicture)) {
         if (currentPicture === pictures.length - 1) {
-            changePicture(0)
+            return (0)
         } else if (currentPicture < 0 || currentPicture >= pictures.length) {
             console.error("Invalid currentPicture, 0.." + pictures.length - 1 + ": " + currentPicture)
         } else {
-            changePicture(currentPicture + 1)
+            return (currentPicture + 1)
         }
     } else {
         console.error("Invalid currentPicture, NaN: " + currentPicture)
@@ -82,9 +107,9 @@ const changePicture = (number) => {
     window.location.hash = thumbnailFilename.substring(thumbnailFilename.indexOf("/") + 1)
     document.getElementById("modalPicture").src = pictures[number].fullsize
     document.getElementById("modalPicture").alt = pictures[number].fullsize.substring(pictures[number].fullsize.indexOf("/") + 1)
-    currentPicture = number
     document.getElementById("modalDescription").innerHTML = pictures[number].fullsize.substring(pictures[number].fullsize.indexOf("/") + 1)
     document.getElementById("modalDownload").href = pictures[number].original
+    currentPicture = number
 }
 
 // if URL links directly to thumbnail via hash link, open modal for that pic on page load
