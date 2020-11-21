@@ -5,6 +5,13 @@
 *.so
 *.dylib
 
+# temp media files
+*.mp4
+*.jpg
+*.png
+*.heic
+.DS_Store
+
 # Test binary, built with `go test -c`
 *.test
 
