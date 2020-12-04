@@ -1,9 +1,18 @@
 #modalPicture {
-    max-width: 90%;
-    max-height: 80%;
+    max-width: 100%;
+    max-height: 90%;
+}
+
+#modalDownload {
+    color: inherit;
+}
+
+#modalHeader,
+#modalFooter {
+    width: 500px;
 }
 
 .modalControl:hover,
 .modalControl:focus {
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: rgba(0, 0, 0, 0.2);
 }

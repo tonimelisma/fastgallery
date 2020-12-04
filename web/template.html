@@ -73,62 +73,55 @@
     <!-- Modal which shows individual pictures full-screen.
          Covers thumbnail view. Hidden by default, unless URL contains
          hashtag and thumbnail name. -->
-    <!-- TODO stick header and footer to top and bottom of screen, picture to fit in between
-         make header and footer look better -->
+    <!-- TODO h&f background color and padding, width, filename center align, nbsp footer,
+         fix order of header icons, picture height -->
     <div class="position-fixed top-0 left-0 width-full height-full d-flex flex-column flex-justify-center flex-items-center box border border-gray box-shadow p-0 bg-gray" id="modal" hidden>
-        <div>
-            <div class="modalControl d-inline-block">
+        <div class="bg-gray clearfix position-absolute top-0 " id="modalHeader">
+            <div class="float-right modalControl d-inline-block">
                 <a href="#" id="modalDownload" download>
-                    <svg width="100" height="100">
-                        <polygon points="10,10 20,20 50,40 75,85 85,25 60,50 85,75 75,85 50,60 25,85 15,75 40,50"
-                            style="fill:gray;" />
-                    </svg>
+                    <i data-feather="download"></i>
                 </a>
             </div>
-            <div class="modalControl d-inline-block" onclick="displayModal(false);">
-                <svg width="100" height="100">
-                    <polygon points="15,25 25,15 50,40 75,15 85,25 60,50 85,75 75,85 50,60 25,85 15,75 40,50"
-                        style="fill:gray;" />
-                </svg>
+            <div class="float-right modalControl d-inline-block" onclick="displayModal(false);">
+                <i data-feather="x"></i>
             </div>
         </div>
         <img id="modalPicture">
-        <div>
-            <div class="modalControl d-inline-block" onclick="prevPicture();">
-                <svg width="80" height="100">
-                    <polygon points="10,50 70,10 70,90" style="fill:gray;" />
-                </svg>
+        <div class="bg-gray position-absolute bottom-0" id="modalFooter">
+            <div class="float-left modalControl d-inline-block" onclick="prevPicture();">
+                <i data-feather="chevron-left"></i>
             </div>
-            <div class="modalControl d-inline-block" onclick="nextPicture();">
-                <svg width="80" height="100">
-                    <polygon points="70,50 10,10 10,90" style="fill:gray;" />
-                </svg>
+            <div class="d-inline-block width-fit css-truncate css-truncate-target" id="modalDescription"></div>
+            <div class="float-right modalControl d-inline-block" onclick="nextPicture();">
+                <i data-feather="chevron-right"></i>
             </div>
-            <span class="position-sticky bottom-0 width-fit css-truncate css-truncate-target p-1" id="modalDescription">diipa daapa</span>
         </div>
-    </div>
 
-    <!-- Statically generated javascript array of pictures on this page -->
-    <script>
-        const pictures = [{
-            thumbnail: "_thumbnails/2018-03-31 16.48.28.jpg",
-            fullsize: "_pictures/2018-03-31 16.48.28.jpg",
-            original: "_original/2018-03-31 16.48.28.jpg"
-        }, {
-            thumbnail: "_thumbnails/2018-07-16 17.28.12 -000.jpg",
-            fullsize: "_pictures/2018-07-16 17.28.12 -000.mp4",
-            original: "_original/2018-07-16 17.28.12 -000.mp4"
-        }, {
-            thumbnail: "_thumbnails/2018-11-10 12.36.05.jpg",
-            fullsize: "_pictures/2018-11-10 12.36.05.jpg",
-            original: "_original/2018-11-10 12.36.05.jpg"
-        }, {
-            thumbnail: "_thumbnails/2016-05-01 18.20.21.jpg",
-            fullsize: "_pictures/2016-05-01 18.20.21.jpg",
-            original: "_original/2016-05-01 18.20.21.jpg"
-        }]
-    </script>
-    <script src="fastgallery.js"></script>
+        <!-- Statically generated javascript array of pictures on this page -->
+        <script>
+            const pictures = [{
+                thumbnail: "_thumbnails/2018-03-31 16.48.28.jpg",
+                fullsize: "_pictures/2018-03-31 16.48.28.jpg",
+                original: "_original/2018-03-31 16.48.28.jpg"
+            }, {
+                thumbnail: "_thumbnails/2018-07-16 17.28.12 -000.jpg",
+                fullsize: "_pictures/2018-07-16 17.28.12 -000.mp4",
+                original: "_original/2018-07-16 17.28.12 -000.mp4"
+            }, {
+                thumbnail: "_thumbnails/2018-11-10 12.36.05.jpg",
+                fullsize: "_pictures/2018-11-10 12.36.05.jpg",
+                original: "_original/2018-11-10 12.36.05.jpg"
+            }, {
+                thumbnail: "_thumbnails/2016-05-01 18.20.21.jpg",
+                fullsize: "_pictures/2016-05-01 18.20.21.jpg",
+                original: "_original/2016-05-01 18.20.21.jpg"
+            }]
+        </script>
+        <script src="feather.min.js"></script>
+        <script>
+            feather.replace()
+        </script>
+        <script src="fastgallery.js"></script>
 
 </body>
 
