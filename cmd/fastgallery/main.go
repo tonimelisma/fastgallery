@@ -44,6 +44,7 @@ var optDryRun = false
 var optCleanUp = false
 
 // templates
+// TODO move templates externally
 const rawTemplate = `<!DOCTYPE html>
 <html lang="en">
  <head>
@@ -355,6 +356,7 @@ func getHTMLRelPath(originalRelPath string, newRootDir string, sourceRootDir str
 }
 
 func createHTML(subdirectories []directory, files []file, sourceRootDir string, htmlDirectoryPath string) {
+	// TODO include root directory assets and link relatively
 	htmlFilePath := filepath.Join(htmlDirectoryPath, "index.html")
 
 	var data htmlData
@@ -451,7 +453,7 @@ func resizeThumbnailVideo(source string, destination string) {
 	image, err := vips.NewImageFromFile(destination)
 	checkError(err)
 
-	// TODO don't load overlay separately
+	// TODO preload overlay globally to reduce overhead
 	playbuttonOverlayImage, err := vips.NewImageFromFile(assetPlaybuttonImage)
 	checkError(err)
 

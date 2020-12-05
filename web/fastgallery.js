@@ -57,7 +57,7 @@ const displayModal = (display) => {
 const preload = (number) => {
     var preloadLink = document.createElement("link")
     preloadLink.rel = "prefetch"
-    preloadLink.href = pictures[number].fullsize
+    preloadLink.href = encodeURI(pictures[number].fullsize)
     const fileExtension = preloadLink.href.split("\.").pop()
     if (fileExtension == videoExtension) {
         preloadLink.as = "video"
@@ -110,9 +110,9 @@ const changePicture = (number) => {
     window.location.hash = thumbnailFilename.substring(thumbnailFilename.indexOf("/") + 1)
     const fileExtension = pictures[number].fullsize.split("\.").pop()
     if (fileExtension == videoExtension) {
-        document.getElementById("modalMedia").innerHTML = "<video controls><source src=\"" + pictures[number].fullsize + "\" type=\"" + videoMIMEType + "\"></video>"
+        document.getElementById("modalMedia").innerHTML = "<video controls><source src=\"" + encodeURI(pictures[number].fullsize) + "\" type=\"" + videoMIMEType + "\"></video>"
     } else {
-        document.getElementById("modalMedia").innerHTML = "<img src=\"" + pictures[number].fullsize + "\" alt=\"" + pictures[number].fullsize.substring(pictures[number].fullsize.indexOf("/") + 1) + "\" class=\"modalImage\">"
+        document.getElementById("modalMedia").innerHTML = "<img src=\"" + encodeURI(pictures[number].fullsize) + "\" alt=\"" + pictures[number].fullsize.substring(pictures[number].fullsize.indexOf("/") + 1) + "\" class=\"modalImage\">"
     }
     document.getElementById("modalDescription").innerHTML = pictures[number].fullsize.substring(pictures[number].fullsize.indexOf("/") + 1)
     document.getElementById("modalDownload").href = pictures[number].original
@@ -122,7 +122,7 @@ const changePicture = (number) => {
 // if URL links directly to thumbnail via hash link, open modal for that pic on page load
 const hashNavigate = () => {
     if (window.location.hash) {
-        const thumbnail = decodeURIComponent(window.location.hash.substring(1))
+        const thumbnail = decodeURI(window.location.hash.substring(1))
         id = pictures.findIndex(item => item.thumbnail.substring(item.thumbnail.indexOf("/") + 1) == thumbnail)
         if (id != -1 && id >= 0 && id < pictures.length) {
             changePicture(id)
