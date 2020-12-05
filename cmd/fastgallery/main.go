@@ -16,6 +16,9 @@ import (
 	"github.com/davidbyttow/govips/v2/vips"
 )
 
+// assets
+const assetPlaybuttonImage = "/home/toni/go/src/github.com/tonimelisma/fastgallery/assets/playbutton.png"
+
 // global defaults
 const optSymlinkDir = "_original"
 const optFullsizeDir = "_pictures"
@@ -438,12 +441,30 @@ func resizeThumbnailVideo(source string, destination string) {
 	ffmpegCommand.Stdout = os.Stdout
 	ffmpegCommand.Stderr = os.Stderr
 
-	// TODO overlay triangle to thumbnail to implicate it's video instead of image
-
 	err := ffmpegCommand.Run()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Could create thumbnail of video %s", source)
+		fmt.Fprintf(os.Stderr, "Could not create thumbnail of video %s", source)
 	}
+
+	// Take thumbnail and overlay triangle image on top of it
+
+	image, err := vips.NewImageFromFile(destination)
+	checkError(err)
+
+	// TODO don't load overlay separately
+	playbuttonOverlayImage, err := vips.NewImageFromFile(assetPlaybuttonImage)
+	checkError(err)
+
+	// overlay play button in the middle of thumbnail picture
+	err = image.Composite(playbuttonOverlayImage, vips.BlendModeSource, (thumbnailWidth/2)-(playbuttonOverlayImage.Width()/2), (thumbnailHeight/2)-(playbuttonOverlayImage.Height()/2))
+	checkError(err)
+
+	ep := vips.NewDefaultJPEGExportParams()
+	imageBytes, _, err := image.Export(ep)
+	checkError(err)
+
+	err = ioutil.WriteFile(destination, imageBytes, optFileMode)
+	checkError(err)
 }
 
 func resizeFullsizeVideo(source string, destination string) {
@@ -453,7 +474,7 @@ func resizeFullsizeVideo(source string, destination string) {
 
 	err := ffmpegCommand.Run()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Could create full-size video of %s", source)
+		fmt.Fprintf(os.Stderr, "Could not create full-size video of %s", source)
 	}
 }
 

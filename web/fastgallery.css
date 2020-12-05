@@ -9,7 +9,7 @@
 
 #modalHeader,
 #modalFooter {
-    width: 500px;
+    min-width: 300px;
 }
 
 .modalControl:hover,

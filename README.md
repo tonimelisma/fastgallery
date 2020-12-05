@@ -6,6 +6,7 @@
 - Deals with any file formats (ncluding HEIC, HEVC)
 - Only updates changed files, runs incrementally
 - Uses relative paths (safe for using in subdirectory or S3)
+- Minimal bloat (no third party frontend libraries, minimal CSS)
 
 *Please note that fastgallery is still pre-alpha, I am actively working on it*
 
@@ -34,3 +35,8 @@ Then, for dependencies, install libvips42 for images and optionally ffmpeg (if y
 ## Roadmap
 
 For the prioritised roadmap, please see https://github.com/tonimelisma/fastgallery/projects/1
+
+## Third party libraries
+- (govips)[https://github.com/davidbyttow/govips], lightning fast image processing and resizing library
+- (Feather)[https://github.com/feathericons/feather] icons, simple and beautiful
+- (Primer)[https://github.com/primer/css] CSS, Github's in-house design system
