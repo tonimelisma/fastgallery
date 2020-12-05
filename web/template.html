@@ -10,113 +10,89 @@
 </head>
 
 <body class="bg-gray">
-    <h1>%%TITLE%%</h1>
+    <div id="thumbnails">
+        <h1 class="mx-1 my-0 m-md-3 m-lg-4">%%TITLE%%</h1>
 
-    <!-- Thumbnail view. First subfolders, then media. -->
-    <div class="container-xl">
-        <div class="col-sm-4 col-md-3 col-lg-2 d-inline-block box border border-gray box-shadow m-md-1 m-lg-2 p-0">
-            <a href="temp2">
-                <img class="width-fit" src="_thumbnails/temp2/2018-10-14 15.59.20.jpg" alt="diipadaapa">
-            </a>
-            <span class="width-fit css-truncate css-truncate-target p-1">temp2</span>
-        </div>
-        <div class="col-sm-4 col-md-3 col-lg-2 d-inline-block box border border-gray box-shadow m-md-1 m-lg-2 p-0" onclick="changePicture(0);displayModal(true);">
-            <img class="width-fit" src="_thumbnails/2018-03-31 16.48.28.jpg" alt="2018-03-31 16.48.28.jpg">
-            <span class="width-fit css-truncate css-truncate-target p-1">2018-03-31 16.48.28.jpg</span>
-        </div>
-        <div class="col-sm-4 col-md-3 col-lg-2 d-inline-block box border border-gray box-shadow m-md-1 m-lg-2 p-0" onclick="changePicture(1);displayModal(true);">
-            <img class="width-fit" src="_thumbnails/2018-07-16 17.28.12 -000.jpg" alt="2018-03-31 16.48.28.jpg">
-            <span class="width-fit css-truncate css-truncate-target p-1">2018-07-16 17.28.12 -000.jpg</span>
-        </div>
-        <div class="col-sm-4 col-md-3 col-lg-2 d-inline-block box border border-gray box-shadow m-md-1 m-lg-2 p-0" onclick="changePicture(2);displayModal(true);">
-            <img class="width-fit" src="_thumbnails/2018-11-10 12.36.05.jpg" alt="2018-11-10 16.48.28.jpg">
-            <span class="width-fit css-truncate css-truncate-target p-1">2018-07-16 17.28.12 -000.jpg</span>
-        </div>
-        <div class="col-sm-4 col-md-3 col-lg-2 d-inline-block box border border-gray box-shadow m-md-1 m-lg-2 p-0" onclick="changePicture(3);displayModal(true);">
-            <img class="width-fit" src="_thumbnails/2016-05-01 18.20.21.jpg" alt="2016-05-01 18.20.21.jpg">
-            <span class="width-fit css-truncate css-truncate-target p-1">2016-05-01 18.20.21</span>
-        </div>
-        <div class="col-sm-4 col-md-3 col-lg-2 d-inline-block box border border-gray box-shadow m-md-1 m-lg-2 p-0" onclick="changePicture(0);displayModal(true);">
-            <img class="width-fit" src="_thumbnails/2018-03-31 16.48.28.jpg" alt="2018-03-31 16.48.28.jpg">
-            <span class="width-fit css-truncate css-truncate-target p-1">2018-03-31 16.48.28.jpg</span>
-        </div>
-        <div class="col-sm-4 col-md-3 col-lg-2 d-inline-block box border border-gray box-shadow m-md-1 m-lg-2 p-0" onclick="changePicture(1);displayModal(true);">
-            <img class="width-fit" src="_thumbnails/2018-07-16 17.28.12 -000.jpg" alt="2018-03-31 16.48.28.jpg">
-            <span class="width-fit css-truncate css-truncate-target p-1">2018-07-16 17.28.12 -000.jpg</span>
-        </div>
-        <div class="col-sm-4 col-md-3 col-lg-2 d-inline-block box border border-gray box-shadow m-md-1 m-lg-2 p-0" onclick="changePicture(2);displayModal(true);">
-            <img class="width-fit" src="_thumbnails/2018-11-10 12.36.05.jpg" alt="2018-11-10 16.48.28.jpg">
-            <span class="width-fit css-truncate css-truncate-target p-1">2018-07-16 17.28.12 -000.jpg</span>
-        </div>
-        <div class="col-sm-4 col-md-3 col-lg-2 d-inline-block box border border-gray box-shadow m-md-1 m-lg-2 p-0" onclick="changePicture(3);displayModal(true);">
-            <img class="width-fit" src="_thumbnails/2016-05-01 18.20.21.jpg" alt="2016-05-01 18.20.21.jpg">
-            <span class="width-fit css-truncate css-truncate-target p-1">2016-05-01 18.20.21</span>
-        </div>
-        <div class="col-sm-4 col-md-3 col-lg-2 d-inline-block box border border-gray box-shadow m-md-1 m-lg-2 p-0" onclick="changePicture(0);displayModal(true);">
-            <img class="width-fit" src="_thumbnails/2018-03-31 16.48.28.jpg" alt="2018-03-31 16.48.28.jpg">
-            <span class="width-fit css-truncate css-truncate-target p-1">2018-03-31 16.48.28.jpg</span>
-        </div>
-        <div class="col-sm-4 col-md-3 col-lg-2 d-inline-block box border border-gray box-shadow m-md-1 m-lg-2 p-0" onclick="changePicture(1);displayModal(true);">
-            <img class="width-fit" src="_thumbnails/2018-07-16 17.28.12 -000.jpg" alt="2018-03-31 16.48.28.jpg">
-            <span class="width-fit css-truncate css-truncate-target p-1">2018-07-16 17.28.12 -000.jpg</span>
-        </div>
-        <div class="col-sm-4 col-md-3 col-lg-2 d-inline-block box border border-gray box-shadow m-md-1 m-lg-2 p-0" onclick="changePicture(2);displayModal(true);">
-            <img class="width-fit" src="_thumbnails/2018-11-10 12.36.05.jpg" alt="2018-11-10 16.48.28.jpg">
-            <span class="width-fit css-truncate css-truncate-target p-1">2018-07-16 17.28.12 -000.jpg</span>
-        </div>
-        <div class="col-sm-4 col-md-3 col-lg-2 d-inline-block box border border-gray box-shadow m-md-1 m-lg-2 p-0" onclick="changePicture(0);displayModal(true);">
-            <img class="width-fit" src="_thumbnails/2018-03-31 16.48.28.jpg" alt="2018-03-31 16.48.28.jpg">
-            <span class="width-fit css-truncate css-truncate-target p-1">2018-03-31 16.48.28.jpg</span>
-        </div>
-        <div class="col-sm-4 col-md-3 col-lg-2 d-inline-block box border border-gray box-shadow m-md-1 m-lg-2 p-0" onclick="changePicture(1);displayModal(true);">
-            <img class="width-fit" src="_thumbnails/2018-07-16 17.28.12 -000.jpg" alt="2018-03-31 16.48.28.jpg">
-            <span class="width-fit css-truncate css-truncate-target p-1">2018-07-16 17.28.12 -000.jpg</span>
-        </div>
-        <div class="col-sm-4 col-md-3 col-lg-2 d-inline-block box border border-gray box-shadow m-md-1 m-lg-2 p-0" onclick="changePicture(2);displayModal(true);">
-            <img class="width-fit" src="_thumbnails/2018-11-10 12.36.05.jpg" alt="2018-11-10 16.48.28.jpg">
-            <span class="width-fit css-truncate css-truncate-target p-1">2018-07-16 17.28.12 -000.jpg</span>
-        </div>
-        <div class="col-sm-4 col-md-3 col-lg-2 d-inline-block box border border-gray box-shadow m-md-1 m-lg-2 p-0" onclick="changePicture(0);displayModal(true);">
-            <img class="width-fit" src="_thumbnails/2018-03-31 16.48.28.jpg" alt="2018-03-31 16.48.28.jpg">
-            <span class="width-fit css-truncate css-truncate-target p-1">2018-03-31 16.48.28.jpg</span>
-        </div>
-        <div class="col-sm-4 col-md-3 col-lg-2 d-inline-block box border border-gray box-shadow m-md-1 m-lg-2 p-0" onclick="changePicture(1);displayModal(true);">
-            <img class="width-fit" src="_thumbnails/2018-07-16 17.28.12 -000.jpg" alt="2018-03-31 16.48.28.jpg">
-            <span class="width-fit css-truncate css-truncate-target p-1">2018-07-16 17.28.12 -000.jpg</span>
-        </div>
-        <div class="col-sm-4 col-md-3 col-lg-2 d-inline-block box border border-gray box-shadow m-md-1 m-lg-2 p-0" onclick="changePicture(2);displayModal(true);">
-            <img class="width-fit" src="_thumbnails/2018-11-10 12.36.05.jpg" alt="2018-11-10 16.48.28.jpg">
-            <span class="width-fit css-truncate css-truncate-target p-1">2018-07-16 17.28.12 -000.jpg</span>
-        </div>
-        <div class="col-sm-4 col-md-3 col-lg-2 d-inline-block box border border-gray box-shadow m-md-1 m-lg-2 p-0" onclick="changePicture(3);displayModal(true);">
-            <img class="width-fit" src="_thumbnails/2016-05-01 18.20.21.jpg" alt="2016-05-01 18.20.21.jpg">
-            <span class="width-fit css-truncate css-truncate-target p-1">2016-05-01 18.20.21</span>
+        <!-- Thumbnail view. First subfolders, then media. -->
+        <div class="container-xl m-0 m-md-2 m-lg-3">
+            <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3">
+                <a href="temp2">
+                    <img class="box border border-gray box-shadow width-fit" src="_thumbnails/temp2/2018-10-14 15.59.20.jpg" alt="diipadaapa">
+                </a>
+                <span class="width-fit css-truncate css-truncate-target"><i data-feather="folder" width="15" height="15"></i> temp2</span>
+            </div>
+            <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3" onclick="changePicture(0);displayModal(true);">
+                <img class="box border border-gray box-shadow width-fit" src="_thumbnails/2018-03-31 16.48.28.jpg" alt="2018-03-31 16.48.28.jpg">
+                <span class="d-flex flex-justify-center width-fit css-truncate css-truncate-target">2018-03-31 16.48.28.jpg</span>
+            </div>
+            <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3" onclick="changePicture(1);displayModal(true);">
+                <img class="box border border-gray box-shadow width-fit" src="_thumbnails/2018-07-16 17.28.12 -000.jpg" alt="2018-03-31 16.48.28.jpg">
+                <span class="width-fit css-truncate css-truncate-target">2018-07-16 17.28.12 -000.jpg</span>
+            </div>
+            <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3" onclick="changePicture(2);displayModal(true);">
+                <img class="box border border-gray box-shadow width-fit" src="_thumbnails/2018-11-10 12.36.05.jpg" alt="2018-11-10 16.48.28.jpg">
+                <span class="width-fit css-truncate css-truncate-target">2018-07-16 17.28.12 -000.jpg</span>
+            </div>
+            <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3" onclick="changePicture(3);displayModal(true);">
+                <img class="box border border-gray box-shadow width-fit" src="_thumbnails/2016-05-01 18.20.21.jpg" alt="2016-05-01 18.20.21.jpg">
+                <span class="width-fit css-truncate css-truncate-target">2016-05-01 18.20.21</span>
+            </div>
+            <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3" onclick="changePicture(0);displayModal(true);">
+                <img class="box border border-gray box-shadow width-fit" src="_thumbnails/2018-03-31 16.48.28.jpg" alt="2018-03-31 16.48.28.jpg">
+                <span class="width-fit css-truncate css-truncate-target">2018-03-31 16.48.28.jpg</span>
+            </div>
+            <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3" onclick="changePicture(1);displayModal(true);">
+                <img class="box border border-gray box-shadow width-fit" src="_thumbnails/2018-07-16 17.28.12 -000.jpg" alt="2018-03-31 16.48.28.jpg">
+                <span class="width-fit css-truncate css-truncate-target">2018-07-16 17.28.12 -000.jpg</span>
+            </div>
+            <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3" onclick="changePicture(2);displayModal(true);">
+                <img class="box border border-gray box-shadow width-fit" src="_thumbnails/2018-11-10 12.36.05.jpg" alt="2018-11-10 16.48.28.jpg">
+                <span class="width-fit css-truncate css-truncate-target">2018-07-16 17.28.12 -000.jpg</span>
+            </div>
+            <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3" onclick="changePicture(3);displayModal(true);">
+                <img class="box border border-gray box-shadow width-fit" src="_thumbnails/2016-05-01 18.20.21.jpg" alt="2016-05-01 18.20.21.jpg">
+                <span class="width-fit css-truncate css-truncate-target">2016-05-01 18.20.21</span>
+            </div>
+            <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3" onclick="changePicture(0);displayModal(true);">
+                <img class="box border border-gray box-shadow width-fit" src="_thumbnails/2018-03-31 16.48.28.jpg" alt="2018-03-31 16.48.28.jpg">
+                <span class="width-fit css-truncate css-truncate-target">2018-03-31 16.48.28.jpg</span>
+            </div>
+            <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3" onclick="changePicture(1);displayModal(true);">
+                <img class="box border border-gray box-shadow width-fit" src="_thumbnails/2018-07-16 17.28.12 -000.jpg" alt="2018-03-31 16.48.28.jpg">
+                <span class="width-fit css-truncate css-truncate-target">2018-07-16 17.28.12 -000.jpg</span>
+            </div>
+            <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3" onclick="changePicture(2);displayModal(true);">
+                <img class="box border border-gray box-shadow width-fit" src="_thumbnails/2018-11-10 12.36.05.jpg" alt="2018-11-10 16.48.28.jpg">
+                <span class="width-fit css-truncate css-truncate-target">2018-07-16 17.28.12 -000.jpg</span>
+            </div>
+            <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3" onclick="changePicture(3);displayModal(true);">
+                <img class="box border border-gray box-shadow width-fit" src="_thumbnails/2016-05-01 18.20.21.jpg" alt="2016-05-01 18.20.21.jpg">
+                <span class="width-fit css-truncate css-truncate-target">2016-05-01 18.20.21</span>
+            </div>
         </div>
     </div>
 
     <!-- Modal which shows individual pictures full-screen.
          Covers thumbnail view. Hidden by default, unless URL contains
          hashtag and thumbnail name. -->
-    <!-- TODO h&f background color and padding, width, filename center align, nbsp footer,
-         fix order of header icons, picture height -->
-    <div class="position-fixed top-0 left-0 width-full height-full d-flex flex-column flex-justify-center flex-items-center box border border-gray box-shadow p-0 bg-gray" id="modal" hidden>
-        <div class="bg-gray clearfix position-absolute top-0 " id="modalHeader">
-            <div class="float-right modalControl d-inline-block" onclick="displayModal(false);">
+    <div class="position-fixed top-0 left-0 width-full height-full d-flex flex-column flex-justify-center flex-items-center box border border-gray box-shadow bg-gray" id="modal" hidden>
+        <div class="bg-gray clearfix position-absolute top-0 p-1" id="modalHeader">
+            <div class="float-right modalControl float-left" onclick="displayModal(false);">
                 <i data-feather="x"></i>
             </div>
-            <div class="float-right modalControl d-inline-block">
+            <div class="float-right modalControl float-left">
                 <a href="#" id="modalDownload" download>
                     <i data-feather="download"></i>
                 </a>
             </div>
         </div>
-        <img id="modalPicture">
-        <div class="bg-gray position-absolute bottom-0" id="modalFooter">
-            <div class="float-left modalControl d-inline-block" onclick="prevPicture();">
+        <div id="modalMedia" class="d-flex flex-justify-center"></div>
+        <div class="bg-gray position-absolute bottom-0 d-flex flex-justify-center p-1" id="modalFooter">
+            <div class="float-left modalControl float-left" onclick="prevPicture();">
                 <i data-feather="chevron-left"></i>
             </div>
-            <div class="d-inline-block width-fit css-truncate css-truncate-target" id="modalDescription"></div>
-            <div class="float-right modalControl d-inline-block" onclick="nextPicture();">
+            <div class="mx-auto float-left width-fit css-truncate css-truncate-target" id="modalDescription"></div>
+            <div class="float-right modalControl float-left" onclick="nextPicture();">
                 <i data-feather="chevron-right"></i>
             </div>
         </div>

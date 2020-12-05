@@ -456,7 +456,7 @@ func resizeThumbnailVideo(source string, destination string) {
 	checkError(err)
 
 	// overlay play button in the middle of thumbnail picture
-	err = image.Composite(playbuttonOverlayImage, vips.BlendModeSource, (thumbnailWidth/2)-(playbuttonOverlayImage.Width()/2), (thumbnailHeight/2)-(playbuttonOverlayImage.Height()/2))
+	err = image.Composite(playbuttonOverlayImage, vips.BlendModeOver, (thumbnailWidth/2)-(playbuttonOverlayImage.Width()/2), (thumbnailHeight/2)-(playbuttonOverlayImage.Height()/2))
 	checkError(err)
 
 	ep := vips.NewDefaultJPEGExportParams()

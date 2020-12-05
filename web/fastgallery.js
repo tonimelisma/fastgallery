@@ -5,6 +5,7 @@ if (typeof pictures == 'undefined') {
 
 // Hard-coded configuration
 const videoExtension = "mp4"
+const videoMIMEType = "video/mp4"
 
 // global variable maintains currently shown picture number (pictures[] array)
 var currentPicture
@@ -41,14 +42,16 @@ for (let box of boxes) {
 const displayModal = (display) => {
     if (display) {
         document.getElementById("modal").hidden = false
+        document.getElementById("thumbnails").hidden = true
     } else {
+        document.getElementById("thumbnails").hidden = false
         document.getElementById("modal").hidden = true
+        document.getElementById("modalMedia").innerHTML = ""
         window.location.hash = ""
     }
 }
 
 // TODO add swipe support https://stackoverflow.com/questions/2264072/detect-a-finger-swipe-through-javascript-on-the-iphone-and-android
-// TODO add arrow key navigation support
 
 // modal previous and next picture button logic
 const preload = (number) => {
@@ -105,8 +108,12 @@ const getNextPicture = () => {
 const changePicture = (number) => {
     thumbnailFilename = pictures[number].thumbnail
     window.location.hash = thumbnailFilename.substring(thumbnailFilename.indexOf("/") + 1)
-    document.getElementById("modalPicture").src = pictures[number].fullsize
-    document.getElementById("modalPicture").alt = pictures[number].fullsize.substring(pictures[number].fullsize.indexOf("/") + 1)
+    const fileExtension = pictures[number].fullsize.split("\.").pop()
+    if (fileExtension == videoExtension) {
+        document.getElementById("modalMedia").innerHTML = "<video controls><source src=\"" + pictures[number].fullsize + "\" type=\"" + videoMIMEType + "\"></video>"
+    } else {
+        document.getElementById("modalMedia").innerHTML = "<img src=\"" + pictures[number].fullsize + "\" alt=\"" + pictures[number].fullsize.substring(pictures[number].fullsize.indexOf("/") + 1) + "\" class=\"modalImage\">"
+    }
     document.getElementById("modalDescription").innerHTML = pictures[number].fullsize.substring(pictures[number].fullsize.indexOf("/") + 1)
     document.getElementById("modalDownload").href = pictures[number].original
     currentPicture = number
@@ -126,4 +133,13 @@ const hashNavigate = () => {
     }
 }
 
+const checkKey = (event) => {
+    if (event.keyCode == '37') {
+        prevPicture()
+    } else if (event.keyCode == '39') {
+        nextPicture()
+    }
+}
+
+document.onkeydown = checkKey
 window.onload = hashNavigate

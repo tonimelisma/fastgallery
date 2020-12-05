@@ -1,6 +1,16 @@
-#modalPicture {
+#modalMedia {
     max-width: 100%;
-    max-height: 90%;
+    max-height: calc(100% - 74px);
+}
+
+.modalImage {
+    object-fit: scale-down;
+    max-width: 100%;
+}
+
+video {
+    max-width: 100%;
+    max-height: 100%;
 }
 
 #modalDownload {
@@ -9,7 +19,8 @@
 
 #modalHeader,
 #modalFooter {
-    min-width: 300px;
+    height: 37px;
+    width: 360px;
 }
 
 .modalControl:hover,
