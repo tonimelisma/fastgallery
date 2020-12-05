@@ -37,6 +37,6 @@ Then, for dependencies, install libvips42 for images and optionally ffmpeg (if y
 For the prioritised roadmap, please see https://github.com/tonimelisma/fastgallery/projects/1
 
 ## Third party libraries
-- (govips)[https://github.com/davidbyttow/govips], lightning fast image processing and resizing library
-- (Feather)[https://github.com/feathericons/feather] icons, simple and beautiful
-- (Primer)[https://github.com/primer/css] CSS, Github's in-house design system
+- [govips](https://github.com/davidbyttow/govips), lightning fast image processing and resizing library
+- [Feather](https://github.com/feathericons/feather) icons, simple and beautiful
+- [Primer](https://github.com/primer/css) CSS, Github's in-house design system
