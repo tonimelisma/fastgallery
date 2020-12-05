@@ -8,7 +8,6 @@
 # temp media files
 *.mp4
 *.jpg
-*.png
 *.heic
 .DS_Store
 
