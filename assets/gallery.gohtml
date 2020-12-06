@@ -1,26 +1,89 @@
+<!DOCTYPE html>
 <html lang="en">
- <head>
- <meta charset="utf-8">
-<title>{{ .Title }}</title>
-<!--<link rel="stylesheet" href="css/style.css">-->
-<!--lightbox here-->
+
+<head>
+  <title>{{ .Title }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="utf-8">
+	<!-- TODO algorithmize CSS and JS locations -->
+	{{ range .CSS }}
+      <link href="{{ . }}" rel="stylesheet">
+	{{ end }}
  </head>
- <body>
+
+ <body class="bg-gray">
+    <div id="thumbnails">
+        <h1 class="mx-1 my-0 m-md-3 m-lg-4">{{ .Title }}</h1>
+
+        <!-- Thumbnail view. First subfolders. -->
+        <div class="container-xl m-0 m-md-2 m-lg-3">
+
 	{{range .Subdirectories}}
-	  <a href="{{ .Name }}">
-		<div class="icon">
-		{{range .Thumbnails}}
-		  <img src="{{ . }}" width="50%">
-		{{end}}
-		</div>
-	  </a>
+            <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3">
+                <a href="{{ .Name }}">
+                    <img class="box border border-gray box-shadow width-fit" src="{{ .Thumbnail }}" alt="{{ .Name }}">
+                </a>
+                <span class="width-fit css-truncate css-truncate-target"><i data-feather="folder" width="15"
+                        height="15"></i> {{ .Name }}</span>
+            </div>
 	{{end}}
-	{{range .Files}}
-	  <a href="{{ .Fullsize }}">
-	    <div class="icon">
-		  <img src="{{ .Thumbnail }}" original alt="{{ .Original }}">
-		</div>
-	  </a>
+
+	{{range $i, $e := .Files}}
+            <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3" onclick="changePicture({{ $i }});displayModal(true);">
+                <img class="box border border-gray box-shadow width-fit" src="{{ .Thumbnail }}" alt="{{ .Filename }}">
+                <span class="d-flex flex-justify-center width-fit css-truncate css-truncate-target">{{ .Filename }}</span>
+			</div>
 	{{end}}
+
+        </div>
+    </div>
+
+    <!-- Modal which shows individual pictures full-screen.
+         Covers thumbnail view. Hidden by default, unless URL contains
+         hashtag and thumbnail name. -->
+    <div class="position-fixed top-0 left-0 width-full height-full d-flex flex-column flex-justify-center flex-items-center box border border-gray box-shadow bg-gray" id="modal" hidden>
+        <div class="bg-gray clearfix position-absolute top-0 p-1" id="modalHeader">
+            <div class="float-right modalControl float-left" onclick="displayModal(false);">
+                <i data-feather="x"></i>
+            </div>
+            <div class="float-right modalControl float-left">
+                <a href="#" id="modalDownload" download>
+                    <i data-feather="download"></i>
+                </a>
+            </div>
+        </div>
+        <div id="modalMedia" class="d-flex flex-justify-center"></div>
+        <div class="bg-gray position-absolute bottom-0 d-flex flex-justify-center p-1" id="modalFooter">
+            <div class="float-left modalControl float-left" onclick="prevPicture();">
+                <i data-feather="chevron-left"></i>
+            </div>
+            <div class="mx-auto float-left width-fit css-truncate css-truncate-target" id="modalDescription"></div>
+            <div class="float-right modalControl float-left" onclick="nextPicture();">
+                <i data-feather="chevron-right"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statically generated javascript array of pictures on this page -->
+    <script>
+        const pictures = [
+	{{range $i, $e := .Files}}
+	{{ if $i }},{{ end }}
+	{
+		thumbnail: "{{ .Thumbnail }}",
+		fullsize: "{{ .Fullsize }}",
+		original: "{{ .Original }}",
+		filename: "{{ .Filename }}"
+	}
+	{{ end }}
+    ]
+    </script>
+	{{ range .JS }}
+      <script src="{{ . }}"></script>
+	{{ end }}
+    <script>
+        feather.replace()
+    </script>
+
  </body>
 </html>

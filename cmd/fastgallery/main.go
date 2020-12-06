@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -17,8 +18,12 @@ import (
 )
 
 // assets
-const assetPlaybuttonImage = "/home/toni/go/src/github.com/tonimelisma/fastgallery/assets/playbutton.png"
-const assetHTMLTemplate = "/home/toni/go/src/github.com/tonimelisma/fastgallery/assets/gallery.gohtml"
+const assetDirectory = "/usr/local/share/fastgallery"
+const assetPlaybuttonImage = "playbutton.png"
+const assetHTMLTemplate = "gallery.gohtml"
+
+var assetCSS = []string{"fastgallery.css", "primer.css"}
+var assetJS = []string{"fastgallery.js", "feather.min.js"}
 
 // global defaults
 const optSymlinkDir = "_original"
@@ -134,8 +139,8 @@ type directory struct {
 type htmlData struct {
 	Title          string
 	Subdirectories []struct {
-		Name       string
-		Thumbnails []string
+		Name      string
+		Thumbnail string
 	}
 	Files []struct {
 		Filename  string
@@ -143,6 +148,8 @@ type htmlData struct {
 		Fullsize  string
 		Original  string
 	}
+	CSS []string
+	JS  []string
 }
 
 // struct used to send jobs to workers via channels
@@ -305,6 +312,34 @@ func createGallery(source directory, sourceRootDir string, gallery directory, fu
 	createHTML(source.subdirectories, source.files, sourceRootDir, htmlDirectoryPath)
 }
 
+func copy(sourceDir string, destDir string, filename string) {
+	sourceFilename := filepath.Join(sourceDir, filename)
+	destFilename := filepath.Join(destDir, filename)
+
+	_, err := os.Stat(sourceFilename)
+	checkError(err)
+
+	sourceHandle, err := os.Open(sourceFilename)
+	checkError(err)
+	defer sourceHandle.Close()
+
+	destHandle, err := os.Create(destFilename)
+	checkError(err)
+	defer destHandle.Close()
+
+	_, err = io.Copy(destHandle, sourceHandle)
+	checkError(err)
+}
+
+func copyRootAssets(gallery directory) {
+	for _, file := range assetCSS {
+		copy(assetDirectory, gallery.absPath, file)
+	}
+	for _, file := range assetJS {
+		copy(assetDirectory, gallery.absPath, file)
+	}
+}
+
 func getHTMLRelPath(originalRelPath string, newRootDir string, sourceRootDir string, folderThumbnail bool) (thumbnailRelPath string) {
 	// Calculate relative path to know how many /../ we need to put into URL to get to root of Gallery
 	directoryList := strings.Split(originalRelPath, "/")
@@ -325,25 +360,38 @@ func getHTMLRelPath(originalRelPath string, newRootDir string, sourceRootDir str
 	return filepath.Join(strings.Join(escapeStringArray, "/"), strings.Replace(originalRelPath, sourceRootDir, newRootDir, 1))
 }
 
+// getHTMLRootPathRelative gets the relative ../../ needed to get to the gallery root path
+// filename provided is a given file in the directory we're in
+// we strip the filename and source gallery root directory to get the
+// number of subdirectories we've descended. Used to link to CSS/JS assets in gallery root.
+func getHTMLRootPathRelative(filename string) (pathRelative string) {
+	directoryList := strings.Split(filename, "/")
+	pathRelative = ""
+	for i := 2; i < len(directoryList); i = i + 1 {
+		pathRelative = pathRelative + "../"
+	}
+	return pathRelative
+}
+
 func createHTML(subdirectories []directory, files []file, sourceRootDir string, htmlDirectoryPath string) {
-	// TODO include root directory assets and link relatively
 	htmlFilePath := filepath.Join(htmlDirectoryPath, "index.html")
 
+	rootEscape := getHTMLRootPathRelative(files[0].relPath)
 	var data htmlData
+	for _, file := range assetCSS {
+		data.CSS = append(data.CSS, rootEscape+file)
+	}
+	for _, file := range assetJS {
+		data.JS = append(data.JS, rootEscape+file)
+	}
 
 	data.Title = filepath.Base(htmlDirectoryPath)
 	for _, dir := range subdirectories {
-		var thumbnails []string
-		// Link four first thumbnails to folder image
-		for i := 0; i < len(dir.files) && i < 4; i++ {
-			thumbnailRelURL := getHTMLRelPath(stripExtension(dir.files[i].relPath)+thumbnailExtension, optThumbnailDir, sourceRootDir, true)
-			thumbnails = append(thumbnails, thumbnailRelURL)
-		}
-
+		thumbnail := getHTMLRelPath(stripExtension(dir.files[0].relPath)+thumbnailExtension, optThumbnailDir, sourceRootDir, true)
 		data.Subdirectories = append(data.Subdirectories, struct {
-			Name       string
-			Thumbnails []string
-		}{Name: dir.name, Thumbnails: thumbnails})
+			Name      string
+			Thumbnail string
+		}{Name: dir.name, Thumbnail: thumbnail})
 	}
 	for _, file := range files {
 		if isImageFile(file.absPath) {
@@ -369,9 +417,7 @@ func createHTML(subdirectories []directory, files []file, sourceRootDir string, 
 	if optDryRun {
 		fmt.Println("Would create HTML:", htmlFilePath)
 	} else {
-		// TODO move templating to global
-		cookedTemplate, err := template.ParseFiles(assetHTMLTemplate)
-		// cookedTemplate, err := template.New("index").ParseFiles(assetHTMLTemplate)
+		cookedTemplate, err := template.ParseFiles(filepath.Join(assetDirectory, assetHTMLTemplate))
 		checkError(err)
 
 		htmlFileHandle, err := os.Create(htmlFilePath)
@@ -426,7 +472,7 @@ func resizeThumbnailVideo(source string, destination string) {
 	checkError(err)
 
 	// TODO preload overlay globally to reduce overhead
-	playbuttonOverlayImage, err := vips.NewImageFromFile(assetPlaybuttonImage)
+	playbuttonOverlayImage, err := vips.NewImageFromFile(filepath.Join(assetDirectory, assetPlaybuttonImage))
 	checkError(err)
 
 	// overlay play button in the middle of thumbnail picture
@@ -738,6 +784,7 @@ func main() {
 
 		// create the gallery
 		createGallery(source, source.name, gallery, fullsizeImageJobs, thumbnailImageJobs, fullsizeVideoJobs, thumbnailVideoJobs)
+		copyRootAssets(gallery)
 
 		close(fullsizeImageJobs)
 		close(fullsizeVideoJobs)

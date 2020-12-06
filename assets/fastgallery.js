@@ -107,14 +107,14 @@ const getNextPicture = () => {
 // function to change picture in modal, used by hashNavigate, and next/prevPicture
 const changePicture = (number) => {
     thumbnailFilename = pictures[number].thumbnail
-    window.location.hash = thumbnailFilename.substring(thumbnailFilename.indexOf("/") + 1)
+    window.location.hash = pictures[number].filename
     const fileExtension = pictures[number].fullsize.split("\.").pop()
     if (fileExtension == videoExtension) {
         document.getElementById("modalMedia").innerHTML = "<video controls><source src=\"" + encodeURI(pictures[number].fullsize) + "\" type=\"" + videoMIMEType + "\"></video>"
     } else {
-        document.getElementById("modalMedia").innerHTML = "<img src=\"" + encodeURI(pictures[number].fullsize) + "\" alt=\"" + pictures[number].fullsize.substring(pictures[number].fullsize.indexOf("/") + 1) + "\" class=\"modalImage\">"
+        document.getElementById("modalMedia").innerHTML = "<img src=\"" + encodeURI(pictures[number].fullsize) + "\" alt=\"" + pictures[number].filename + "\" class=\"modalImage\">"
     }
-    document.getElementById("modalDescription").innerHTML = pictures[number].fullsize.substring(pictures[number].fullsize.indexOf("/") + 1)
+    document.getElementById("modalDescription").innerHTML = pictures[number].filename
     document.getElementById("modalDownload").href = pictures[number].original
     currentPicture = number
 }
@@ -122,8 +122,8 @@ const changePicture = (number) => {
 // if URL links directly to thumbnail via hash link, open modal for that pic on page load
 const hashNavigate = () => {
     if (window.location.hash) {
-        const thumbnail = decodeURI(window.location.hash.substring(1))
-        id = pictures.findIndex(item => item.thumbnail.substring(item.thumbnail.indexOf("/") + 1) == thumbnail)
+        const filename = decodeURI(window.location.hash.substring(1))
+        id = pictures.findIndex(item => item.filename == filename)
         if (id != -1 && id >= 0 && id < pictures.length) {
             changePicture(id)
             displayModal(true)
@@ -134,10 +134,12 @@ const hashNavigate = () => {
 }
 
 const checkKey = (event) => {
-    if (event.keyCode == '37') {
+    if (event.key === "ArrowLeft") {
         prevPicture()
-    } else if (event.keyCode == '39') {
+    } else if (event.key === "ArrowRight") {
         nextPicture()
+    } else if (event.key === "Escape") {
+        displayModal(false)
     }
 }
 

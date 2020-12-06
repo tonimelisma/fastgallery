@@ -8,9 +8,9 @@
 - Uses relative paths (safe for using in subdirectory or S3)
 - Minimal bloat (no third party frontend libraries, minimal CSS)
 
-*Please note that fastgallery is still pre-alpha, I am actively working on it*
+*Please note that fastgallery is still beta, I am actively working on it*
 
-## Install
+## Dependencies
 
 ### MacOS
 
@@ -20,17 +20,23 @@ For dependencies, use Homebrew to install:
 
 ### Ubuntu Linux
 
-For Ubuntu 20.04 focal, first add my PPA for latest libvips with HEIF support:
+For Ubuntu 18.04 bionic or 20.04 focal, first add my PPA for latest libvips with HEIF support:
 
 `sudo add-apt-repository ppa:tonimelisma/ppa`
 
-Then, for dependencies, install libvips42 for images and optionally ffmpeg (if you need video support):
+For dependencies, install libvips42 for images and optionally ffmpeg (if you need video support):
 
 `apt-get install libvips42 ffmpeg`
 
+## Install
+
+1. Download the latest release and unpack
+2. Run ```make build```
+3. Copy ```bin/fastgallery``` to ```/usr/local/bin```
+4. Copy contents of ```assets/``` to ```/usr/local/share/fastgallery```
 ## Usage
 
-`fastgallery -o /var/www/html ~/Dropbox/Pictures`
+`fastgallery -o /var/www/html/gallery ~/Dropbox/Pictures`
 
 ## Roadmap
 
