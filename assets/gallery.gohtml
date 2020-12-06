@@ -1,0 +1,26 @@
+<html lang="en">
+ <head>
+ <meta charset="utf-8">
+<title>{{ .Title }}</title>
+<!--<link rel="stylesheet" href="css/style.css">-->
+<!--lightbox here-->
+ </head>
+ <body>
+	{{range .Subdirectories}}
+	  <a href="{{ .Name }}">
+		<div class="icon">
+		{{range .Thumbnails}}
+		  <img src="{{ . }}" width="50%">
+		{{end}}
+		</div>
+	  </a>
+	{{end}}
+	{{range .Files}}
+	  <a href="{{ .Fullsize }}">
+	    <div class="icon">
+		  <img src="{{ .Thumbnail }}" original alt="{{ .Original }}">
+		</div>
+	  </a>
+	{{end}}
+ </body>
+</html>

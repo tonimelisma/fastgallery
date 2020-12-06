@@ -18,6 +18,7 @@ import (
 
 // assets
 const assetPlaybuttonImage = "/home/toni/go/src/github.com/tonimelisma/fastgallery/assets/playbutton.png"
+const assetHTMLTemplate = "/home/toni/go/src/github.com/tonimelisma/fastgallery/assets/gallery.gohtml"
 
 // global defaults
 const optSymlinkDir = "_original"
@@ -42,37 +43,6 @@ const imageWorkerPoolSize = 5
 var optIgnoreVideos = false
 var optDryRun = false
 var optCleanUp = false
-
-// templates
-// TODO move templates externally
-const rawTemplate = `<!DOCTYPE html>
-<html lang="en">
- <head>
- <meta charset="utf-8">
-<title>{{ .Title }}</title>
-<!--<link rel="stylesheet" href="css/style.css">-->
-<!--lightbox here-->
- </head>
- <body>
-	{{range .Subdirectories}}
-	  <a href="{{ .Name }}">
-		<div class="icon">
-		{{range .Thumbnails}}
-		  <img src="{{ . }}" width="50%">
-		{{end}}
-		</div>
-	  </a>
-	{{end}}
-	{{range .Files}}
-	  <a href="{{ .Fullsize }}">
-	    <div class="icon">
-		  <img src="{{ .Thumbnail }}" original alt="{{ .Original }}">
-		</div>
-	  </a>
-	{{end}}
- </body>
-</html>
-`
 
 // this function parses command-line arguments
 func parseArgs() (inputDirectory string, outputDirectory string) {
@@ -399,7 +369,9 @@ func createHTML(subdirectories []directory, files []file, sourceRootDir string, 
 	if optDryRun {
 		fmt.Println("Would create HTML:", htmlFilePath)
 	} else {
-		cookedTemplate, err := template.New("index").Parse(rawTemplate)
+		// TODO move templating to global
+		cookedTemplate, err := template.ParseFiles(assetHTMLTemplate)
+		// cookedTemplate, err := template.New("index").ParseFiles(assetHTMLTemplate)
 		checkError(err)
 
 		htmlFileHandle, err := os.Create(htmlFilePath)
