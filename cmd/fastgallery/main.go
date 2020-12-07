@@ -166,6 +166,9 @@ func checkError(e error) {
 func isEmptyDir(directory string) (isEmpty bool) {
 	list, err := ioutil.ReadDir(directory)
 	checkError(err)
+	if err != nil {
+		return
+	}
 
 	if len(list) == 0 {
 		return true
@@ -214,6 +217,9 @@ func recurseDirectory(thisDirectory string, relativeDirectory string) (root dire
 
 	list, err := ioutil.ReadDir(thisDirectory)
 	checkError(err)
+	if err != nil {
+		return
+	}
 
 	for _, entry := range list {
 		if entry.IsDir() {
@@ -319,17 +325,29 @@ func copy(sourceDir string, destDir string, filename string) {
 
 	_, err := os.Stat(sourceFilename)
 	checkError(err)
+	if err != nil {
+		return
+	}
 
 	sourceHandle, err := os.Open(sourceFilename)
 	checkError(err)
+	if err != nil {
+		return
+	}
 	defer sourceHandle.Close()
 
 	destHandle, err := os.Create(destFilename)
 	checkError(err)
+	if err != nil {
+		return
+	}
 	defer destHandle.Close()
 
 	_, err = io.Copy(destHandle, sourceHandle)
 	checkError(err)
+	if err != nil {
+		return
+	}
 }
 
 func copyRootAssets(gallery directory) {
@@ -424,13 +442,22 @@ func createHTML(subdirectories []directory, files []file, sourceRootDir string, 
 	} else {
 		cookedTemplate, err := template.ParseFiles(filepath.Join(assetDirectory, assetHTMLTemplate))
 		checkError(err)
+		if err != nil {
+			return
+		}
 
 		htmlFileHandle, err := os.Create(htmlFilePath)
 		checkError(err)
+		if err != nil {
+			return
+		}
 		defer htmlFileHandle.Close()
 
 		err = cookedTemplate.Execute(htmlFileHandle, data)
 		checkError(err)
+		if err != nil {
+			return
+		}
 
 		htmlFileHandle.Sync()
 		htmlFileHandle.Close()
@@ -444,6 +471,9 @@ func createDirectory(destination string) {
 		} else {
 			err := os.Mkdir(destination, optDirectoryMode)
 			checkError(err)
+			if err != nil {
+				return
+			}
 		}
 	}
 }
@@ -455,9 +485,15 @@ func symlinkFile(source string, destination string) {
 		if _, err := os.Stat(destination); err == nil {
 			err := os.Remove(destination)
 			checkError(err)
+			if err != nil {
+				return
+			}
 		}
 		err := os.Symlink(source, destination)
 		checkError(err)
+		if err != nil {
+			return
+		}
 	}
 }
 
@@ -475,21 +511,36 @@ func resizeThumbnailVideo(source string, destination string) {
 
 	image, err := vips.NewImageFromFile(destination)
 	checkError(err)
+	if err != nil {
+		return
+	}
 
 	// TODO preload overlay globally to reduce overhead
 	playbuttonOverlayImage, err := vips.NewImageFromFile(filepath.Join(assetDirectory, assetPlaybuttonImage))
 	checkError(err)
+	if err != nil {
+		return
+	}
 
 	// overlay play button in the middle of thumbnail picture
 	err = image.Composite(playbuttonOverlayImage, vips.BlendModeOver, (thumbnailWidth/2)-(playbuttonOverlayImage.Width()/2), (thumbnailHeight/2)-(playbuttonOverlayImage.Height()/2))
 	checkError(err)
+	if err != nil {
+		return
+	}
 
 	ep := vips.NewDefaultJPEGExportParams()
 	imageBytes, _, err := image.Export(ep)
 	checkError(err)
+	if err != nil {
+		return
+	}
 
 	err = ioutil.WriteFile(destination, imageBytes, optFileMode)
 	checkError(err)
+	if err != nil {
+		return
+	}
 }
 
 func resizeFullsizeVideo(source string, destination string) {
@@ -507,11 +558,17 @@ func resizeThumbnailImage(source string, destination string) {
 	if thumbnailExtension == ".jpg" {
 		image, err := vips.NewImageFromFile(source)
 		checkError(err)
+		if err != nil {
+			return
+		}
 
 		// TODO fix inefficiency, autorotate before resizing
 		// Needed for now to simplify thumbnailing calculations
 		err = image.AutoRotate()
 		checkError(err)
+		if err != nil {
+			return
+		}
 
 		// Resize and crop picture to suitable
 		ratio := float64(image.Height()) / float64(image.Width())
@@ -523,36 +580,57 @@ func resizeThumbnailImage(source string, destination string) {
 			scale := float64(thumbnailHeight) / float64(image.Height())
 			err = image.Resize(scale, vips.KernelAuto)
 			checkError(err)
+			if err != nil {
+				return
+			}
 
 			// Calculate how much to crop from each edge
 			cropAmount := (image.Width() - thumbnailWidth) / 2
 			err = image.ExtractArea(cropAmount, 0, thumbnailWidth, thumbnailHeight)
 			checkError(err)
+			if err != nil {
+				return
+			}
 		} else if ratio > targetRatio {
 			// Picture is higher than thumbnail
 			// Resize by width to fit thumbnail size, then crop top and bottom edge
 			scale := float64(thumbnailWidth) / float64(image.Width())
 			err = image.Resize(scale, vips.KernelAuto)
 			checkError(err)
+			if err != nil {
+				return
+			}
 
 			// Calculate how much to crop from each edge
 			cropAmount := (image.Height() - thumbnailHeight) / 2
 			err = image.ExtractArea(0, cropAmount, thumbnailWidth, thumbnailHeight)
 			checkError(err)
+			if err != nil {
+				return
+			}
 		} else {
 			// Picture has same aspect ratio as thumbnail
 			// Resize, but no need to crop after resize
 			scale := float64(thumbnailWidth) / float64(image.Width())
 			err = image.Resize(scale, vips.KernelAuto)
 			checkError(err)
+			if err != nil {
+				return
+			}
 		}
 
 		ep := vips.NewDefaultJPEGExportParams()
 		imageBytes, _, err := image.Export(ep)
 		checkError(err)
+		if err != nil {
+			return
+		}
 
 		err = ioutil.WriteFile(destination, imageBytes, optFileMode)
 		checkError(err)
+		if err != nil {
+			return
+		}
 	} else {
 		fmt.Fprintf(os.Stderr, "Can't figure out what format to convert thumbnail image to: %s\n", destination)
 	}
@@ -562,9 +640,15 @@ func resizeFullsizeImage(source string, destination string) {
 	if fullsizePictureExtension == ".jpg" {
 		image, err := vips.NewImageFromFile(source)
 		checkError(err)
+		if err != nil {
+			return
+		}
 
 		err = image.AutoRotate()
 		checkError(err)
+		if err != nil {
+			return
+		}
 
 		scale := float64(fullsizeMaxWidth) / float64(image.Width())
 		if (scale * float64(image.Height())) > float64(fullsizeMaxHeight) {
@@ -573,13 +657,22 @@ func resizeFullsizeImage(source string, destination string) {
 
 		err = image.Resize(scale, vips.KernelAuto)
 		checkError(err)
+		if err != nil {
+			return
+		}
 
 		ep := vips.NewDefaultJPEGExportParams()
 		imageBytes, _, err := image.Export(ep)
 		checkError(err)
+		if err != nil {
+			return
+		}
 
 		err = ioutil.WriteFile(destination, imageBytes, optFileMode)
 		checkError(err)
+		if err != nil {
+			return
+		}
 	} else {
 		fmt.Fprintf(os.Stderr, "Can't figure out what format to convert full size image to: %s\n", destination)
 	}
@@ -679,6 +772,9 @@ func cleanGallery(gallery directory) {
 			} else {
 				err := os.Remove(file.absPath)
 				checkError(err)
+				if err != nil {
+					return
+				}
 			}
 
 		}
@@ -694,6 +790,9 @@ func cleanGallery(gallery directory) {
 		} else {
 			err := os.Remove(gallery.absPath)
 			checkError(err)
+			if err != nil {
+				return
+			}
 		}
 	}
 }
@@ -702,6 +801,9 @@ func cleanGallery(gallery directory) {
 func checkReservedNames(inputDirectory string) {
 	list, err := ioutil.ReadDir(inputDirectory)
 	checkError(err)
+	if err != nil {
+		return
+	}
 
 	for _, entry := range list {
 		if entry.Name() == optSymlinkDir || entry.Name() == optFullsizeDir || entry.Name() == optThumbnailDir {
