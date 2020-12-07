@@ -20,6 +20,7 @@ import (
 // assets
 const assetDirectory = "/usr/local/share/fastgallery"
 const assetPlaybuttonImage = "playbutton.png"
+const assetFolderImage = "folder.png"
 const assetHTMLTemplate = "gallery.gohtml"
 
 var assetCSS = []string{"fastgallery.css", "primer.css"}
@@ -138,18 +139,16 @@ type directory struct {
 // struct used to fill in data for each html page
 type htmlData struct {
 	Title          string
-	Subdirectories []struct {
-		Name      string
-		Thumbnail string
-	}
-	Files []struct {
+	Subdirectories []string
+	Files          []struct {
 		Filename  string
 		Thumbnail string
 		Fullsize  string
 		Original  string
 	}
-	CSS []string
-	JS  []string
+	CSS        []string
+	JS         []string
+	FolderIcon string
 }
 
 // struct used to send jobs to workers via channels
@@ -309,7 +308,9 @@ func createGallery(source directory, sourceRootDir string, gallery directory, fu
 		createGallery(dir, sourceRootDir, gallery, fullsizeImageJobs, thumbnailImageJobs, fullsizeVideoJobs, thumbnailVideoJobs)
 	}
 
-	createHTML(source.subdirectories, source.files, sourceRootDir, htmlDirectoryPath)
+	if len(source.subdirectories) > 0 || len(source.files) > 0 {
+		createHTML(source.subdirectories, source.files, sourceRootDir, htmlDirectoryPath)
+	}
 }
 
 func copy(sourceDir string, destDir string, filename string) {
@@ -338,6 +339,7 @@ func copyRootAssets(gallery directory) {
 	for _, file := range assetJS {
 		copy(assetDirectory, gallery.absPath, file)
 	}
+	copy(assetDirectory, gallery.absPath, assetFolderImage)
 }
 
 func getHTMLRelPath(originalRelPath string, newRootDir string, sourceRootDir string, folderThumbnail bool) (thumbnailRelPath string) {
@@ -376,22 +378,25 @@ func getHTMLRootPathRelative(filename string) (pathRelative string) {
 func createHTML(subdirectories []directory, files []file, sourceRootDir string, htmlDirectoryPath string) {
 	htmlFilePath := filepath.Join(htmlDirectoryPath, "index.html")
 
-	rootEscape := getHTMLRootPathRelative(files[0].relPath)
+	var rootEscape string
+	if len(files) > 0 {
+		rootEscape = getHTMLRootPathRelative(files[0].relPath)
+	} else {
+		rootEscape = getHTMLRootPathRelative(subdirectories[0].relPath)
+	}
 	var data htmlData
+
 	for _, file := range assetCSS {
 		data.CSS = append(data.CSS, rootEscape+file)
 	}
 	for _, file := range assetJS {
 		data.JS = append(data.JS, rootEscape+file)
 	}
+	data.FolderIcon = rootEscape + assetFolderImage
 
 	data.Title = filepath.Base(htmlDirectoryPath)
 	for _, dir := range subdirectories {
-		thumbnail := getHTMLRelPath(stripExtension(dir.files[0].relPath)+thumbnailExtension, optThumbnailDir, sourceRootDir, true)
-		data.Subdirectories = append(data.Subdirectories, struct {
-			Name      string
-			Thumbnail string
-		}{Name: dir.name, Thumbnail: thumbnail})
+		data.Subdirectories = append(data.Subdirectories, dir.name)
 	}
 	for _, file := range files {
 		if isImageFile(file.absPath) {

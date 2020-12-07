@@ -1,3 +1,7 @@
+.box {
+    cursor: pointer;
+}
+
 #modalMedia {
     max-width: 100%;
     max-height: calc(100% - 74px);

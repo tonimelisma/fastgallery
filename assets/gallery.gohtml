@@ -20,17 +20,16 @@
 
 	{{range .Subdirectories}}
             <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3">
-                <a href="{{ .Name }}">
-                    <img class="box border border-gray box-shadow width-fit" src="{{ .Thumbnail }}" alt="{{ .Name }}">
+                <a href="{{ . }}">
+                    <img class="box border border-gray box-shadow width-fit" src="{{ $.FolderIcon }}" alt="{{ . }}">
                 </a>
-                <span class="width-fit css-truncate css-truncate-target"><i data-feather="folder" width="15"
-                        height="15"></i> {{ .Name }}</span>
+                <span class="width-fit css-truncate css-truncate-target">{{ . }}</span>
             </div>
 	{{end}}
 
 	{{range $i, $e := .Files}}
-            <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3" onclick="changePicture({{ $i }});displayModal(true);">
-                <img class="box border border-gray box-shadow width-fit" src="{{ .Thumbnail }}" alt="{{ .Filename }}">
+            <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3">
+                <img class="box border border-gray box-shadow width-fit" src="{{ .Thumbnail }}" alt="{{ .Filename }}" onclick="changePicture({{ $i }});displayModal(true);">
                 <span class="d-flex flex-justify-center width-fit css-truncate css-truncate-target">{{ .Filename }}</span>
 			</div>
 	{{end}}
