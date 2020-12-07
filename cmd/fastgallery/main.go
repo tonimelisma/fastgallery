@@ -758,8 +758,15 @@ func main() {
 
 	changes := countChanges(source)
 	if changes > 0 {
+		if optCleanUp {
+			fmt.Print("Cleaning up unused media files in output directory...")
+			cleanGallery(gallery)
+			fmt.Println("done.")
+		}
+
 		var progressBar *pb.ProgressBar
 		if !optDryRun {
+			fmt.Println("Creating gallery...")
 			progressBar = pb.StartNew(changes)
 			vips.LoggingSettings(nil, vips.LogLevelMessage)
 			vips.Startup(nil)
@@ -789,7 +796,10 @@ func main() {
 
 		// create the gallery
 		createGallery(source, source.name, gallery, fullsizeImageJobs, thumbnailImageJobs, fullsizeVideoJobs, thumbnailVideoJobs)
-		copyRootAssets(gallery)
+
+		if !optDryRun {
+			copyRootAssets(gallery)
+		}
 
 		close(fullsizeImageJobs)
 		close(fullsizeVideoJobs)
@@ -803,11 +813,6 @@ func main() {
 		fmt.Println("Gallery created!")
 	} else {
 		fmt.Println("No pictures to update!")
-	}
-
-	if optCleanUp {
-		fmt.Println("\nCleaning up unused media files in output directory...")
-		cleanGallery(gallery)
 	}
 
 	fmt.Println("\nDone!")

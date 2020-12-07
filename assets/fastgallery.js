@@ -128,8 +128,11 @@ const hashNavigate = () => {
             changePicture(id)
             displayModal(true)
         } else {
+            displayModal(false)
             console.error("Invalid thumbnail link provided after # in URI")
         }
+    } else {
+        displayModal(false)
     }
 }
 
@@ -144,4 +147,4 @@ const checkKey = (event) => {
 }
 
 document.onkeydown = checkKey
-window.onload = hashNavigate
+window.onpopstate = hashNavigate
