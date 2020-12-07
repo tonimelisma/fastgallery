@@ -258,7 +258,7 @@ func compareDirectories(source *directory, gallery *directory) {
 	for k, inputDir := range source.subdirectories {
 		for l, outputDir := range gallery.subdirectories {
 			if inputDir.name == outputDir.name {
-				compareDirectories(&(source.subdirectories[l]), &(gallery.subdirectories[k]))
+				compareDirectories(&(source.subdirectories[k]), &(gallery.subdirectories[l]))
 			}
 		}
 	}
@@ -498,7 +498,7 @@ func symlinkFile(source string, destination string) {
 }
 
 func resizeThumbnailVideo(source string, destination string) {
-	ffmpegCommand := exec.Command("ffmpeg", "-y", "-i", source, "-ss", "00:00:01", "-vframes", "1", "-vf", fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d", thumbnailWidth, thumbnailHeight, thumbnailWidth, thumbnailHeight), "-loglevel", "fatal", destination)
+	ffmpegCommand := exec.Command("ffmpeg", "-y", "-i", source, "-ss", "00:00:00", "-vframes", "1", "-vf", fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d", thumbnailWidth, thumbnailHeight, thumbnailWidth, thumbnailHeight), "-loglevel", "fatal", destination)
 	ffmpegCommand.Stdout = os.Stdout
 	ffmpegCommand.Stderr = os.Stderr
 
