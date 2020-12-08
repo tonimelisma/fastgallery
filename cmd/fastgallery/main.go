@@ -48,14 +48,16 @@ const imageWorkerPoolSize = 5
 
 var optIgnoreVideos = false
 var optDryRun = false
+var optVerbose = false
 var optCleanUp = false
 
 // this function parses command-line arguments
 func parseArgs() (inputDirectory string, outputDirectory string) {
 	outputDirectoryPtr := flag.String("o", ".", "Output root directory for gallery")
-	optIgnoreVideosPtr := flag.Bool("v", false, "Ignore video files")
+	optIgnoreVideosPtr := flag.Bool("i", false, "Ignore video files")
 	optCleanUpPtr := flag.Bool("c", false, "Clean up - delete stale media files from output directory")
 	optDryRunPtr := flag.Bool("d", false, "Dry run - don't make changes, only explain what would be done")
+	optVerbosePtr := flag.Bool("v", false, "Verbose - explain what's happening all the time")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [OPTION]... DIRECTORY\n\n", os.Args[0])
@@ -84,11 +86,6 @@ func parseArgs() (inputDirectory string, outputDirectory string) {
 		os.Exit(1)
 	}
 
-	if _, err := os.Stat(*outputDirectoryPtr); os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "%s: Directory does not exist: %s\n", os.Args[0], *outputDirectoryPtr)
-		os.Exit(1)
-	}
-
 	if isEmptyDir(flag.Args()[0]) {
 		fmt.Fprintf(os.Stderr, "%s: Input directory is empty: %s\n", os.Args[0], flag.Args()[0])
 		os.Exit(1)
@@ -100,6 +97,10 @@ func parseArgs() (inputDirectory string, outputDirectory string) {
 
 	if *optCleanUpPtr {
 		optCleanUp = true
+	}
+
+	if *optVerbosePtr {
+		optVerbose = true
 	}
 
 	if *optIgnoreVideosPtr {
@@ -833,11 +834,20 @@ func main() {
 	}
 	fmt.Println("")
 
+	// create gallery directory if it doesn't exist
+	createDirectory(outputDirectory)
+
 	// check that source directory doesn't have reserved directory or file names
 	checkReservedNames(inputDirectory)
 
 	// create directory structs by recursing through source and gallery directories
-	gallery = recurseDirectory(outputDirectory, "")
+	if _, err := os.Stat(outputDirectory); os.IsNotExist(err) {
+		// gallery.name = filepath.Base(outputDirectory)
+		// gallery.absPath, _ = filepath.Abs(outputDirectory)
+		// gallery.relPath = ""
+	} else {
+		gallery = recurseDirectory(outputDirectory, "")
+	}
 	source = recurseDirectory(inputDirectory, "")
 
 	// check whether gallery already has up-to-date pictures of sources,
@@ -870,7 +880,11 @@ func main() {
 		if !optDryRun {
 			fmt.Println("Creating gallery...")
 			progressBar = pb.StartNew(changes)
-			vips.LoggingSettings(nil, vips.LogLevelMessage)
+			if optVerbose {
+				vips.LoggingSettings(nil, vips.LogLevelDebug)
+			} else {
+				vips.LoggingSettings(nil, vips.LogLevelMessage)
+			}
 			vips.Startup(nil)
 			defer vips.Shutdown()
 		}
