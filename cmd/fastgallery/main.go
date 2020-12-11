@@ -114,7 +114,18 @@ func parseArgs() (inputDirectory string, outputDirectory string) {
 		}
 	}
 
-	return *outputDirectoryPtr, flag.Args()[0]
+	inputDirectory, err := filepath.Abs(flag.Args()[0])
+	checkError(err)
+	if err != nil {
+		os.Exit(1)
+	}
+	outputDirectory, err = filepath.Abs(*outputDirectoryPtr)
+	checkError(err)
+	if err != nil {
+		os.Exit(1)
+	}
+
+	return
 }
 
 // each file has a corresponding struct with relative and absolute paths
@@ -829,7 +840,7 @@ func main() {
 	var source directory
 
 	// parse command-line args and set HTML template ready
-	outputDirectory, inputDirectory = parseArgs()
+	inputDirectory, outputDirectory = parseArgs()
 
 	fmt.Println(os.Args[0], ": Creating photo gallery")
 	fmt.Println("")

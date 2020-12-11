@@ -3,7 +3,7 @@
 ## Fast static photo and video gallery generator
 - Super fast (written in Go and C, concurrent, uses fastest image/video libraries, 4-8 times faster than others)
 - Both photo and video support
-- Deals with any file formats (ncluding HEIC, HEVC)
+- Deals with any file formats (including HEIC and HEVC)
 - Only updates changed files, runs incrementally
 - Uses relative paths (safe for using in subdirectory or S3)
 - Minimal bloat (no third party frontend libraries, minimal CSS)
@@ -28,7 +28,7 @@ For Ubuntu 18.04 bionic or 20.04 focal, first add my PPA for latest libvips with
 
 `sudo add-apt-repository ppa:tonimelisma/ppa`
 
-For dependencies, install libvips42 for images and optionally ffmpeg (if you need video support):
+Then install libvips42 for images and optionally ffmpeg (if you need video support):
 
 `apt-get install libvips42 ffmpeg`
 
