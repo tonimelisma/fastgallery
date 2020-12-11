@@ -21,6 +21,7 @@ import (
 const assetDirectory = "/usr/local/share/fastgallery"
 const assetPlaybuttonImage = "playbutton.png"
 const assetFolderImage = "folder.png"
+const assetBackImage = "back.png"
 const assetHTMLTemplate = "gallery.gohtml"
 
 var assetCSS = []string{"fastgallery.css", "primer.css"}
@@ -150,6 +151,7 @@ type htmlData struct {
 	CSS        []string
 	JS         []string
 	FolderIcon string
+	BackIcon   string
 }
 
 // struct used to send jobs to workers via channels
@@ -359,6 +361,7 @@ func copyRootAssets(gallery directory) {
 		copy(assetDirectory, gallery.absPath, file)
 	}
 	copy(assetDirectory, gallery.absPath, assetFolderImage)
+	copy(assetDirectory, gallery.absPath, assetBackImage)
 }
 
 func getHTMLRelPath(originalRelPath string, newRootDir string, sourceRootDir string, folderThumbnail bool) (thumbnailRelPath string) {
@@ -412,6 +415,9 @@ func createHTML(subdirectories []directory, files []file, sourceRootDir string, 
 		data.JS = append(data.JS, rootEscape+file)
 	}
 	data.FolderIcon = rootEscape + assetFolderImage
+	if len(rootEscape) > 0 {
+		data.BackIcon = rootEscape + assetBackImage
+	}
 
 	data.Title = filepath.Base(htmlDirectoryPath)
 	for _, dir := range subdirectories {
@@ -878,9 +884,7 @@ func main() {
 		}
 
 		// create gallery directory if it doesn't exist
-		if _, err := os.Stat(gallery.absPath); os.IsNotExist(err) {
-			createDirectory(gallery.absPath)
-		}
+		createDirectory(gallery.absPath)
 
 		var progressBar *pb.ProgressBar
 		if !optDryRun {
