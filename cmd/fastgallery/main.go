@@ -895,11 +895,13 @@ func main() {
 			} else {
 				vips.LoggingSettings(nil, vips.LogLevelMessage)
 			}
-			vips.Startup(&vips.Config{
-				MaxCacheFiles: 0,
-				MaxCacheMem:   0,
-				MaxCacheSize:  0,
-				ReportLeaks:   false})
+			if optVerbose {
+				vips.Startup(&vips.Config{
+					ReportLeaks: true})
+			} else {
+				vips.Startup(&vips.Config{
+					ReportLeaks: false})
+			}
 			defer vips.Shutdown()
 		}
 
