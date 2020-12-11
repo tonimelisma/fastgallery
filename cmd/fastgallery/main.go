@@ -834,19 +834,16 @@ func main() {
 	}
 	fmt.Println("")
 
-	// create gallery directory if it doesn't exist
-	createDirectory(outputDirectory)
-
 	// check that source directory doesn't have reserved directory or file names
 	checkReservedNames(inputDirectory)
 
 	// create directory structs by recursing through source and gallery directories
-	if _, err := os.Stat(outputDirectory); os.IsNotExist(err) {
-		// gallery.name = filepath.Base(outputDirectory)
-		// gallery.absPath, _ = filepath.Abs(outputDirectory)
-		// gallery.relPath = ""
-	} else {
+	if _, err := os.Stat(outputDirectory); !os.IsNotExist(err) {
 		gallery = recurseDirectory(outputDirectory, "")
+	} else {
+		gallery.name = filepath.Base(outputDirectory)
+		gallery.absPath, _ = filepath.Abs(outputDirectory)
+		gallery.relPath = ""
 	}
 	source = recurseDirectory(inputDirectory, "")
 
@@ -872,8 +869,17 @@ func main() {
 	if changes > 0 {
 		if optCleanUp {
 			fmt.Print("Cleaning up unused media files in output directory...")
-			cleanGallery(gallery)
-			fmt.Println("done.")
+			if _, err := os.Stat(gallery.absPath); !os.IsNotExist(err) {
+				cleanGallery(gallery)
+				fmt.Println("done.")
+			} else {
+				fmt.Println("already empty.")
+			}
+		}
+
+		// create gallery directory if it doesn't exist
+		if _, err := os.Stat(gallery.absPath); os.IsNotExist(err) {
+			createDirectory(gallery.absPath)
 		}
 
 		var progressBar *pb.ProgressBar
@@ -885,14 +891,18 @@ func main() {
 			} else {
 				vips.LoggingSettings(nil, vips.LogLevelMessage)
 			}
-			vips.Startup(nil)
+			vips.Startup(&vips.Config{
+				MaxCacheFiles: 0,
+				MaxCacheMem:   0,
+				MaxCacheSize:  0,
+				ReportLeaks:   false})
 			defer vips.Shutdown()
 		}
 
-		fullsizeImageJobs := make(chan job, 100000)
-		thumbnailImageJobs := make(chan job, 100000)
-		fullsizeVideoJobs := make(chan job, 100000)
-		thumbnailVideoJobs := make(chan job, 100000)
+		fullsizeImageJobs := make(chan job, 10000)
+		thumbnailImageJobs := make(chan job, 10000)
+		fullsizeVideoJobs := make(chan job, 10000)
+		thumbnailVideoJobs := make(chan job, 10000)
 
 		var wg sync.WaitGroup
 
