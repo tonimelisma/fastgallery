@@ -10,6 +10,10 @@
 
 *Please note that fastgallery is still beta, I am actively working on it*
 
+## Examples
+
+Please see [https://www.melisma.fi/fastgallery-examples/](https://www.melisma.fi/fastgallery-examples/)
+
 ## Dependencies
 
 ### MacOS
