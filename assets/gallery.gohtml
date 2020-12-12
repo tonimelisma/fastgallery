@@ -12,7 +12,7 @@
 
  <body class="bg-gray">
     <div id="thumbnails">
-        <h1 class="mx-1 my-0 m-md-3 m-lg-4">{{ .Title }}</h1>
+        <h1 class="px-2 pb-2 my-0 m-md-3 m-lg-4">{{ .Title }}</h1>
 
         <!-- Thumbnail view. First subfolders. -->
         <div class="container-xl m-0 m-md-2 m-lg-3">
@@ -22,7 +22,7 @@
                 <a href="../">
                     <img class="box border border-gray box-shadow width-fit" src="{{ .BackIcon }}" alt="Back">
                 </a>
-                <span class="width-fit css-truncate css-truncate-target">Back</span>
+                <span class="px-2 pb-2 width-fit css-truncate css-truncate-target">Back</span>
             </div>
     {{end}}
 
@@ -31,14 +31,14 @@
                 <a href="{{ . }}">
                     <img class="box border border-gray box-shadow width-fit" src="{{ $.FolderIcon }}" alt="{{ . }}">
                 </a>
-                <span class="width-fit css-truncate css-truncate-target">{{ . }}</span>
+                <span class="px-2 pb-2 width-fit css-truncate css-truncate-target">{{ . }}</span>
             </div>
 	{{end}}
 
 	{{range $i, $e := .Files}}
             <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3">
                 <img class="box border border-gray box-shadow width-fit" src="{{ .Thumbnail }}" alt="{{ .Filename }}" onclick="changePicture({{ $i }});displayModal(true);">
-                <span class="d-flex flex-justify-center width-fit css-truncate css-truncate-target">{{ .Filename }}</span>
+                <span class="px-2 pb-2 width-fit css-truncate css-truncate-target">{{ .Filename }}</span>
 			</div>
 	{{end}}
 
