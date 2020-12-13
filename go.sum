@@ -5,8 +5,13 @@ github.com/cheggaaa/pb/v3 v3.0.5/go.mod h1:X1L61/+36nz9bjIsrDU52qHKOQukUQe2Ge+Yv
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/davidbyttow/govips/v2 v2.1.1-0.20201210220308-63f6534b5fe1 h1:Z+LDD8N8J7C08ZJ/ScZKM8+zdOROUKajBEHaJQQw3KI=
-github.com/davidbyttow/govips/v2 v2.1.1-0.20201210220308-63f6534b5fe1/go.mod h1:goq38QD8XEMz2aWEeucEZqRxAWsemIN40vbUqfPfTAw=
+github.com/davidbyttow/govips v0.0.0-20201026223743-b1b72c7305d9 h1:nXNjG6pGALu++DSxtrdO79AZhtU+jZnyMlq3FTkFH74=
+github.com/davidbyttow/govips/v2 v2.1.0 h1:n18SBq7dnjvW1+WKk65tnuF9IBaA4A1YHYrQ1iKZ28g=
+github.com/davidbyttow/govips/v2 v2.1.0/go.mod h1:goq38QD8XEMz2aWEeucEZqRxAWsemIN40vbUqfPfTAw=
+github.com/davidbyttow/govips/v2 v2.1.1-0.20201213191833-b69d46af32bb h1:SbICNpa72dhbQaJ+R5yYLGjbpEXU0RE5puO8qa+muag=
+github.com/davidbyttow/govips/v2 v2.1.1-0.20201213191833-b69d46af32bb/go.mod h1:goq38QD8XEMz2aWEeucEZqRxAWsemIN40vbUqfPfTAw=
+github.com/davidbyttow/govips/v2 v2.2.0 h1:O21ykVQNJ7LYxpa7yG6TN2g2VF/WonOksljCD2jQK4o=
+github.com/davidbyttow/govips/v2 v2.2.0/go.mod h1:goq38QD8XEMz2aWEeucEZqRxAWsemIN40vbUqfPfTAw=
 github.com/fatih/color v1.7.0 h1:DkWD4oS2D8LGGgTQ6IvwJJXSL5Vp2ffcQg58nFV38Ys=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
 github.com/fatih/color v1.10.0 h1:s36xzo75JdqLaaWoiEHk767eHiwo0598uUxyfiPkDsg=
