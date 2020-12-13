@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,6 +17,8 @@ import (
 
 	"github.com/cheggaaa/pb/v3"
 	"github.com/davidbyttow/govips/v2/vips"
+
+	_ "net/http/pprof"
 )
 
 // assets
@@ -58,7 +62,8 @@ func parseArgs() (inputDirectory string, outputDirectory string) {
 	optIgnoreVideosPtr := flag.Bool("i", false, "Ignore video files")
 	optCleanUpPtr := flag.Bool("c", false, "Clean up - delete stale media files from output directory")
 	optDryRunPtr := flag.Bool("d", false, "Dry run - don't make changes, only explain what would be done")
-	optVerbosePtr := flag.Bool("v", false, "Verbose - explain what's happening all the time")
+	optVerbosePtr := flag.Bool("v", false, "Verbose - print debugging information to stderr")
+	optProfile := flag.Bool("p", false, "Run Go pprof profiling service for debugging")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [OPTION]... DIRECTORY\n\n", os.Args[0])
@@ -90,6 +95,12 @@ func parseArgs() (inputDirectory string, outputDirectory string) {
 	if isEmptyDir(flag.Args()[0]) {
 		fmt.Fprintf(os.Stderr, "%s: Input directory is empty: %s\n", os.Args[0], flag.Args()[0])
 		os.Exit(1)
+	}
+
+	if *optProfile {
+		go func() {
+			log.Println(http.ListenAndServe("localhost:6060", nil))
+		}()
 	}
 
 	if *optDryRunPtr {
