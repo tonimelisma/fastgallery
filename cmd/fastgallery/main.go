@@ -733,6 +733,9 @@ func resizeFullsizeImage(source string, destination string) {
 func fullsizeImageWorker(wg *sync.WaitGroup, imageJobs chan job, progressBar *pb.ProgressBar) {
 	defer wg.Done()
 	for job := range imageJobs {
+		if optVerbose {
+			fmt.Fprintf(os.Stderr, "Creating full size image of %s\n", job.source)
+		}
 		resizeFullsizeImage(job.source, job.destination)
 		if !optDryRun {
 			progressBar.Increment()
@@ -746,12 +749,12 @@ func fullsizeImageWorker(wg *sync.WaitGroup, imageJobs chan job, progressBar *pb
 func fullsizeVideoWorker(wg *sync.WaitGroup, videoJobs chan job, progressBar *pb.ProgressBar) {
 	defer wg.Done()
 	for job := range videoJobs {
+		if optVerbose {
+			fmt.Fprintf(os.Stderr, "Creating full size video of %s\n", job.source)
+		}
 		resizeFullsizeVideo(job.source, job.destination)
 		if !optDryRun {
 			progressBar.Increment()
-			if optMemoryUse {
-				runtime.GC()
-			}
 		}
 	}
 }
@@ -785,6 +788,9 @@ func fullsizeCopyFile(source string, destination string, fullsizeImageJobs chan 
 func thumbnailImageWorker(wg *sync.WaitGroup, thumbnailImageJobs chan job) {
 	defer wg.Done()
 	for job := range thumbnailImageJobs {
+		if optVerbose {
+			fmt.Fprintf(os.Stderr, "Creating thumbnail image of %s\n", job.source)
+		}
 		resizeThumbnailImage(job.source, job.destination)
 	}
 }
@@ -792,6 +798,9 @@ func thumbnailImageWorker(wg *sync.WaitGroup, thumbnailImageJobs chan job) {
 func thumbnailVideoWorker(wg *sync.WaitGroup, thumbnailVideoJobs chan job) {
 	defer wg.Done()
 	for job := range thumbnailVideoJobs {
+		if optVerbose {
+			fmt.Fprintf(os.Stderr, "Creating thumbnail video of %s\n", job.source)
+		}
 		resizeThumbnailVideo(job.source, job.destination)
 	}
 }
