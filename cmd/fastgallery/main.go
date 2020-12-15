@@ -449,7 +449,7 @@ func createHTML(subdirectories []directory, files []file, sourceRootDir string, 
 	if len(files) > 0 {
 		rootEscape = getHTMLRootPathRelative(files[0].relPath)
 	} else {
-		rootEscape = getHTMLRootPathRelative(subdirectories[0].relPath)
+		rootEscape = getHTMLRootPathRelative(subdirectories[0].relPath + "/")
 	}
 	var data htmlData
 
@@ -963,10 +963,10 @@ func main() {
 			defer vips.Shutdown()
 		}
 
-		fullsizeImageJobs := make(chan job, 10000)
-		thumbnailImageJobs := make(chan job, 10000)
-		fullsizeVideoJobs := make(chan job, 10000)
-		thumbnailVideoJobs := make(chan job, 10000)
+		fullsizeImageJobs := make(chan job, 100000)
+		thumbnailImageJobs := make(chan job, 100000)
+		fullsizeVideoJobs := make(chan job, 100000)
+		thumbnailVideoJobs := make(chan job, 100000)
 
 		var wg sync.WaitGroup
 
