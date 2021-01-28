@@ -1,155 +1,91 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
-	"sync"
-	"text/template"
 	"time"
 
 	"github.com/cheggaaa/pb/v3"
 	"github.com/davidbyttow/govips/v2/vips"
+	"github.com/kr/pretty"
 
-	_ "net/http/pprof"
+	"github.com/alexflint/go-arg"
 )
 
-// assets
-const assetDirectory = "/usr/local/share/fastgallery"
-const assetPlaybuttonImage = "playbutton.png"
-const assetFolderImage = "folder.png"
-const assetBackImage = "back.png"
-const assetHTMLTemplate = "gallery.gohtml"
+// Define global exit function, so unit tests can override this
+var exit = os.Exit
 
-var assetCSS = []string{"fastgallery.css", "primer.css"}
-var assetJS = []string{"fastgallery.js", "feather.min.js"}
-
-// global defaults
-const optSymlinkDir = "_original"
-const optFullsizeDir = "_pictures"
-const optThumbnailDir = "_thumbnails"
-
-const optDirectoryMode os.FileMode = 0755
-const optFileMode os.FileMode = 0644
-
-const thumbnailExtension = ".jpg"
-const fullsizePictureExtension = ".jpg"
-const fullsizeVideoExtension = ".mp4"
-
-const thumbnailWidth = 280
-const thumbnailHeight = 210
-const fullsizeMaxWidth = 1920
-const fullsizeMaxHeight = 1080
-
-const videoWorkerPoolSize = 2
-const imageWorkerPoolSize = 5
-
-var optIgnoreVideos = false
-var optDryRun = false
-var optVerbose = false
-var optCleanUp = false
-var optMemoryUse = false
-
-// this function parses command-line arguments
-func parseArgs() (inputDirectory string, outputDirectory string) {
-	outputDirectoryPtr := flag.String("o", ".", "Output root directory for gallery")
-	optIgnoreVideosPtr := flag.Bool("i", false, "Ignore video files")
-	optCleanUpPtr := flag.Bool("c", false, "Clean up - delete stale media files from output directory")
-	optDryRunPtr := flag.Bool("d", false, "Dry run - don't make changes, only explain what would be done")
-	optVerbosePtr := flag.Bool("v", false, "Verbose - print debugging information to stderr")
-	optProfile := flag.Bool("p", false, "Run Go pprof profiling service for debugging")
-	optMemory := flag.Bool("m", false, "Minimize memory usage")
-
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s [OPTION]... DIRECTORY\n\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "Create a static photo and video gallery from all\nsubdirectories and files in directory.\n")
-		fmt.Fprintf(os.Stderr, "\n")
-		flag.PrintDefaults()
+// configuration state is stored in this struct
+type configuration struct {
+	asset struct {
+		directory       string
+		indexTemplate   string
+		playbuttonImage string
+		folderImage     string
+		backImage       string
+		CSS             []string
+		JS              []string
 	}
-
-	flag.Parse()
-
-	if flag.NArg() == 0 {
-		fmt.Fprintf(os.Stderr, "%s: missing directories to use as input\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "Try '%s -h' for more information.\n", os.Args[0])
-		os.Exit(1)
+	files struct {
+		originalDir    string
+		fullsizeDir    string
+		thumbnailDir   string
+		directoryMode  os.FileMode
+		fileMode       os.FileMode
+		imageExtension string
+		videoExtension string
 	}
-
-	if flag.NArg() != 1 {
-		fmt.Fprintf(os.Stderr, "%s: wrong number of arguments given for input (expected one)\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "Supply all options before input directory (go standard library limitation).\n")
-		fmt.Fprintf(os.Stderr, "Try '%s -h' for more information.\n", os.Args[0])
-		os.Exit(1)
+	media struct {
+		thumbnailWidth    int
+		thumbnailHeight   int
+		fullsizeMaxWidth  int
+		fullsizeMaxHeight int
+		videoMaxSize      int
 	}
-
-	if _, err := os.Stat(flag.Args()[0]); os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "%s: Directory does not exist: %s\n", os.Args[0], flag.Args()[0])
-		os.Exit(1)
-	}
-
-	if isEmptyDir(flag.Args()[0]) {
-		fmt.Fprintf(os.Stderr, "%s: Input directory is empty: %s\n", os.Args[0], flag.Args()[0])
-		os.Exit(1)
-	}
-
-	if *optMemory {
-		optMemoryUse = true
-	}
-
-	if *optProfile {
-		go func() {
-			log.Println(http.ListenAndServe("localhost:6060", nil))
-		}()
-	}
-
-	if *optDryRunPtr {
-		optDryRun = true
-	}
-
-	if *optCleanUpPtr {
-		optCleanUp = true
-	}
-
-	if *optVerbosePtr {
-		optVerbose = true
-	}
-
-	if *optIgnoreVideosPtr {
-		optIgnoreVideos = true
-	} else {
-		_, err := exec.LookPath("ffmpeg")
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: Can't find ffmpeg in path\n", os.Args[0])
-			os.Exit(1)
-		}
-	}
-
-	inputDirectory, err := filepath.Abs(flag.Args()[0])
-	checkError(err)
-	if err != nil {
-		os.Exit(1)
-	}
-	outputDirectory, err = filepath.Abs(*outputDirectoryPtr)
-	checkError(err)
-	if err != nil {
-		os.Exit(1)
-	}
-
-	return
+	concurrency int
 }
 
-// each file has a corresponding struct with relative and absolute paths
-// for source files, if a newer thumbnail exists in gallery we set the existing flag and don't copy it
-// for gallery files, if no corresponding source file exists, the existing flag stays false
-// all non-existing gallery files will be deleted in the end
+// initialize the configuration with hardcoded defaults
+func initializeConfig() (config configuration) {
+	config.asset.directory = "/usr/local/share/fastgallery"
+	config.asset.indexTemplate = "index.gohtml"
+	config.asset.playbuttonImage = "play.png"
+	config.asset.folderImage = "folder.png"
+	config.asset.backImage = "back.png"
+	config.asset.CSS = []string{"fastgallery.css", "primer.css"}
+	config.asset.JS = []string{"fastgallery.js", "feather.min.js"}
+
+	config.files.originalDir = "_original"
+	config.files.fullsizeDir = "_fullsize"
+	config.files.thumbnailDir = "_thumbnail"
+	config.files.directoryMode = 0755
+	config.files.fileMode = 0644
+	config.files.imageExtension = ".jpg"
+	config.files.videoExtension = ".mp4"
+
+	config.media.thumbnailWidth = 280
+	config.media.thumbnailHeight = 210
+	config.media.fullsizeMaxWidth = 1920
+	config.media.fullsizeMaxHeight = 1080
+	config.media.videoMaxSize = 640
+
+	config.concurrency = 8
+
+	return config
+}
+
+// file struct represents an individual media file
+// relPath is the relative path to from source/gallery root directory.
+// For source files, exists marks whether it exists in the gallery and doesn't need to be copied.
+// In this case, gallery has all three transformed files (original, full-size and thumbnail) and
+// the thumbnail's modification date isn't before the original source file's.
+// For gallery files, exists marks whether all three gallery files are in place (original, full-size
+// and thumbnail) and there's a corresponding source file.
 type file struct {
 	name    string
 	relPath string
@@ -158,56 +94,131 @@ type file struct {
 	exists  bool
 }
 
+// directory struct is one directory, which contains files and subdirectories
+// relPath is the relative path from source/gallery root directory
 type directory struct {
 	name           string
 	relPath        string
 	absPath        string
 	modTime        time.Time
-	subdirectories []directory
 	files          []file
+	subdirectories []directory
 }
 
-// struct used to fill in data for each html page
-type htmlData struct {
-	Title          string
-	Subdirectories []string
-	Files          []struct {
-		Filename  string
-		Thumbnail string
-		Fullsize  string
-		Original  string
+// exists checks whether given file, directory or symlink exists
+func exists(filepath string) bool {
+	if _, err := os.Stat(filepath); os.IsNotExist(err) {
+		return false
 	}
-	CSS        []string
-	JS         []string
-	FolderIcon string
-	BackIcon   string
+	return true
 }
 
-// struct used to send jobs to workers via channels
-type job struct {
-	source      string
-	destination string
-}
-
-func checkError(e error) {
-	if e != nil {
-		fmt.Fprintln(os.Stderr, "Error:", e)
-	}
-}
-
-func isEmptyDir(directory string) (isEmpty bool) {
-	list, err := ioutil.ReadDir(directory)
-	checkError(err)
-	if err != nil {
-		return
+// isDirectory checks whether provided path is a directory or symlink to one
+// resolves symlinks only one level deep
+func isDirectory(directory string) bool {
+	filestat, err := os.Stat(directory)
+	if os.IsNotExist(err) {
+		return false
 	}
 
-	if len(list) == 0 {
+	if filestat.IsDir() {
 		return true
 	}
+
+	if filestat.Mode()&os.ModeSymlink != 0 {
+		realDirectory, err := filepath.EvalSymlinks(directory)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
+			return false
+		}
+
+		realFilestat, err := os.Stat(realDirectory)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
+			return false
+		}
+
+		if realFilestat.IsDir() {
+			return true
+		}
+	}
+
 	return false
 }
 
+// Validate that source and gallery directories given as parameters
+// are valid directories. Return absolue path of source and gallery
+func validateSourceAndGallery(source string, gallery string) (string, string) {
+	var err error
+
+	source, err = filepath.Abs(source)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
+		exit(1)
+	}
+
+	if !isDirectory(source) {
+		fmt.Fprintf(os.Stderr, "Source directory doesn't exist: %s\n", source)
+		exit(1)
+	}
+
+	gallery, err = filepath.Abs(gallery)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
+		exit(1)
+	}
+
+	if !isDirectory(gallery) {
+		// Ok, gallery isn't a directory but check whether the parent directory is
+		// and we're supposed to create gallery there during runtime
+		galleryParent, err := filepath.Abs(gallery + "/../")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
+			exit(1)
+		}
+
+		if !isDirectory(galleryParent) {
+			fmt.Fprintf(os.Stderr, "Neither gallery directory or it's parent directory exist: %s\n", gallery)
+			exit(1)
+		}
+	}
+
+	return source, gallery
+}
+
+// Checks whether directory has media files, or subdirectories with media files.
+// If there's a subdirectory that's empty or that has directories or files which
+// aren't media files, we leave that out of the directory tree.
+func dirHasMediafiles(directory string) (isEmpty bool) {
+	list, err := ioutil.ReadDir(directory)
+	if err != nil {
+		// If we can't read the directory contents, it doesn't have media files in it
+		return false
+	}
+
+	if len(list) == 0 {
+		// If it's empty, it doesn't have media files
+		return false
+	}
+
+	for _, entry := range list {
+		entryAbsPath := filepath.Join(directory, entry.Name())
+		if entry.IsDir() {
+			// Recursion to subdirectories
+			if dirHasMediafiles(entryAbsPath) {
+				return true
+			}
+		} else if isMediaFile(entryAbsPath) {
+			// We found at least one media file, return true
+			return true
+		}
+	}
+
+	// Didn't find at least one media file
+	return false
+}
+
+// Check whether given path is a video file
 func isVideoFile(filename string) bool {
 	switch filepath.Ext(strings.ToLower(filename)) {
 	case ".mp4", ".mov", ".3gp", ".avi", ".mts", ".m4v", ".mpg":
@@ -217,6 +228,7 @@ func isVideoFile(filename string) bool {
 	}
 }
 
+// Check whether given path is an image file
 func isImageFile(filename string) bool {
 	switch filepath.Ext(strings.ToLower(filename)) {
 	case ".jpg", ".jpeg", ".heic", ".png", ".gif", ".tif", ".tiff":
@@ -228,85 +240,152 @@ func isImageFile(filename string) bool {
 	}
 }
 
+// Check whether given absolute path is a media file
 func isMediaFile(filename string) bool {
 	if isImageFile(filename) {
 		return true
 	}
 
-	if !optIgnoreVideos && isVideoFile(filename) {
+	// TODO optIgnoreVideos
+	if isVideoFile(filename) {
 		return true
 	}
 
 	return false
 }
 
-// Checks if given directory entry is symbolic link to a directory
-func isSymlinkDir(directory string, entry os.FileInfo) (is bool) {
-	if entry.Mode()&os.ModeSymlink != 0 {
-		realPath, err := filepath.EvalSymlinks(filepath.Join(directory, entry.Name()))
-		checkError(err)
-
-		fileinfo, err := os.Lstat(realPath)
-		checkError(err)
-
-		if fileinfo.IsDir() {
-			return true
-		}
-	}
-	return false
-}
-
-func recurseDirectory(thisDirectory string, relativeDirectory string) (root directory) {
-	root.name = filepath.Base(thisDirectory)
-	asIsStat, _ := os.Stat(thisDirectory)
-	root.modTime = asIsStat.ModTime()
-	root.relPath = relativeDirectory
-	root.absPath, _ = filepath.Abs(thisDirectory)
-
-	list, err := ioutil.ReadDir(thisDirectory)
-	checkError(err)
-	if err != nil {
+// Create a recursive directory struct by traversing the directory absoluteDirectory.
+// The function calls itself recursively, carrying state in the relativeDirectory parameter.
+func createDirectoryTree(absoluteDirectory string, parentDirectory string) (tree directory) {
+	// In case the target directory doesn't exist, it's the gallery directory
+	// which hasn't been created yet. We'll just create a dummy tree and return it.
+	if !exists(absoluteDirectory) && parentDirectory == "" {
+		tree.name = filepath.Base(absoluteDirectory)
+		tree.relPath = parentDirectory
+		tree.absPath, _ = filepath.Abs(absoluteDirectory)
 		return
 	}
 
-	for _, entry := range list {
-		if entry.IsDir() || isSymlinkDir(thisDirectory, entry) {
-			if !isEmptyDir(filepath.Join(thisDirectory, entry.Name())) {
-				root.subdirectories = append(root.subdirectories, recurseDirectory(filepath.Join(thisDirectory, entry.Name()), filepath.Join(relativeDirectory, root.name)))
-			}
-		} else {
-			if isMediaFile(entry.Name()) {
-				root.files = append(root.files, file{name: entry.Name(), modTime: entry.ModTime(), relPath: filepath.Join(relativeDirectory, root.name, entry.Name()), absPath: filepath.Join(thisDirectory, entry.Name()), exists: false})
-			}
-		}
+	// Fill in the directory name and other basic info
+	tree.name = filepath.Base(absoluteDirectory)
+	tree.absPath, _ = filepath.Abs(absoluteDirectory)
+	tree.relPath = parentDirectory
+	absoluteDirectoryStat, _ := os.Stat(absoluteDirectory)
+	tree.modTime = absoluteDirectoryStat.ModTime()
+
+	// List directory contents
+	list, err := ioutil.ReadDir(absoluteDirectory)
+	if err != nil {
+		log.Fatal("Couldn't list directory contents:", absoluteDirectory)
 	}
 
-	return (root)
+	// If it's a directory and it has media files somewhere, add it to directories
+	// If it's a media file, add it to the files
+	for _, entry := range list {
+		entryAbsPath := filepath.Join(absoluteDirectory, entry.Name())
+		entryRelPath := filepath.Join(parentDirectory, entry.Name())
+		if entry.IsDir() {
+			if dirHasMediafiles(entryAbsPath) {
+				entrySubTree := createDirectoryTree(entryAbsPath, entryRelPath)
+				tree.subdirectories = append(tree.subdirectories, entrySubTree)
+			}
+		} else if isMediaFile(entryAbsPath) {
+			entryFile := file{
+				name:    entry.Name(),
+				relPath: entryRelPath,
+				absPath: entryAbsPath,
+				modTime: entry.ModTime(),
+				exists:  false,
+			}
+			tree.files = append(tree.files, entryFile)
+		}
+	}
+	return
 }
 
-func stripExtension(fullFilename string) (baseFilename string) {
-	extension := filepath.Ext(fullFilename)
-	return fullFilename[0 : len(fullFilename)-len(extension)]
+// stripExtension strips the filename extension and returns the basename
+func stripExtension(filename string) string {
+	extension := filepath.Ext(filename)
+	return filename[0 : len(filename)-len(extension)]
 }
 
-func compareDirectories(source *directory, gallery *directory) {
-	for i, inputFile := range source.files {
-		inputFileBasename := stripExtension(inputFile.name)
-		for j, outputFile := range gallery.files {
-			outputFileBasename := stripExtension(outputFile.name)
-			if inputFileBasename == outputFileBasename {
-				gallery.files[j].exists = true
-				if !outputFile.modTime.Before(inputFile.modTime) {
-					source.files[i].exists = true
+func reservedDirectory(path string, config configuration) bool {
+	if path == config.files.thumbnailDir {
+		return true
+	}
+
+	if path == config.files.fullsizeDir {
+		return true
+	}
+
+	if path == config.files.originalDir {
+		return true
+	}
+
+	return false
+}
+
+// compareDirectoryTrees compares two directory trees (source and gallery) and marks
+// each file that exists in both
+func compareDirectoryTrees(source *directory, gallery *directory, config configuration) {
+	for i, sourceFile := range source.files {
+		sourceFileBasename := stripExtension(sourceFile.name)
+
+		var thumbnailFile, fullsizeFile, originalFile *file
+
+		// Go through all subdirectories, and check the ones that match
+		// the thumbnail, full-size or original subdirectories
+		for _, subDir := range gallery.subdirectories {
+			if subDir.name == config.files.thumbnailDir {
+				for _, outputFile := range subDir.files {
+					outputFileBasename := stripExtension(outputFile.name)
+					if sourceFileBasename == outputFileBasename {
+						thumbnailFile = &outputFile
+					}
+				}
+			}
+
+			if subDir.name == config.files.fullsizeDir {
+				for _, outputFile := range subDir.files {
+					outputFileBasename := stripExtension(outputFile.name)
+					if sourceFileBasename == outputFileBasename {
+						fullsizeFile = &outputFile
+					}
+				}
+			}
+
+			if subDir.name == config.files.originalDir {
+				for _, outputFile := range subDir.files {
+					outputFileBasename := stripExtension(outputFile.name)
+					if sourceFileBasename == outputFileBasename {
+						originalFile = &outputFile
+					}
 				}
 			}
 		}
+
+		// If all of thumbnail, full-size and original files exist in gallery, mark them
+		// as existing so they aren't deleted in a clean-up. If only 1 or 2 of 3 exist,
+		// they might be remnants of an aborted previous run. Clean-up will take care of them.
+		if thumbnailFile != nil && fullsizeFile != nil && originalFile != nil {
+			thumbnailFile.exists = true
+			fullsizeFile.exists = true
+			originalFile.exists = true
+			if !thumbnailFile.modTime.Before(sourceFile.modTime) {
+				// Overwrite gallery files in case source file's been updated since the thumbnail
+				// was created.
+				source.files[i].exists = true
+			}
+		}
 	}
 
+	// After checking all the files in this directory, recurse into each subdirectory and do the same
 	for k, inputDir := range source.subdirectories {
-		for l, outputDir := range gallery.subdirectories {
-			if inputDir.name == outputDir.name {
-				compareDirectories(&(source.subdirectories[k]), &(gallery.subdirectories[l]))
+		if !reservedDirectory(inputDir.name, config) {
+			for l, outputDir := range gallery.subdirectories {
+				if inputDir.name == outputDir.name {
+					compareDirectoryTrees(&(source.subdirectories[k]), &(gallery.subdirectories[l]), config)
+				}
 			}
 		}
 	}
@@ -327,630 +406,115 @@ func countChanges(source directory) (outputChanges int) {
 	return outputChanges
 }
 
-func createGallery(source directory, sourceRootDir string, gallery directory, fullsizeImageJobs chan job, thumbnailImageJobs chan job, fullsizeVideoJobs chan job, thumbnailVideoJobs chan job) {
-	// Create directories if they don't exist
-	fullsizeDirectoryPath := strings.Replace(filepath.Join(gallery.absPath, source.relPath, source.name), sourceRootDir, optFullsizeDir, 1)
-	createDirectory(fullsizeDirectoryPath)
-
-	thumbnailDirectoryPath := strings.Replace(filepath.Join(gallery.absPath, source.relPath, source.name), sourceRootDir, optThumbnailDir, 1)
-	createDirectory(thumbnailDirectoryPath)
-
-	symlinkDirectoryPath := strings.Replace(filepath.Join(gallery.absPath, source.relPath, source.name), sourceRootDir, optSymlinkDir, 1)
-	createDirectory(symlinkDirectoryPath)
-
-	htmlDirectoryPath := strings.Replace(filepath.Join(gallery.absPath, source.relPath, source.name), sourceRootDir, "", 1)
-	createDirectory(htmlDirectoryPath)
-
-	for _, file := range source.files {
-		if !file.exists {
-			// Create full-size copy
-			fullsizeFilePath := strings.Replace(filepath.Join(gallery.absPath, file.relPath), sourceRootDir, optFullsizeDir, 1)
-			fullsizeCopyFile(file.absPath, fullsizeFilePath, fullsizeImageJobs, fullsizeVideoJobs)
-
-			// Create thumbnail
-			thumbnailFilePath := strings.Replace(filepath.Join(gallery.absPath, file.relPath), sourceRootDir, optThumbnailDir, 1)
-			thumbnailCopyFile(file.absPath, thumbnailFilePath, thumbnailImageJobs, thumbnailVideoJobs)
-
-			// Symlink each file
-			symlinkFilePath := strings.Replace(filepath.Join(gallery.absPath, file.relPath), sourceRootDir, optSymlinkDir, 1)
-			symlinkFile(file.absPath, symlinkFilePath)
+func createDirectory(destination string, dryRun bool, config configuration) {
+	if _, err := os.Stat(destination); os.IsNotExist(err) {
+		if dryRun {
+			fmt.Println("Would create directory:", destination)
+		} else {
+			err := os.Mkdir(destination, config.files.directoryMode)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "couldn't create directory %s: %s\n", destination, err.Error())
+				exit(1)
+			}
 		}
-	}
-
-	// Recurse into each subdirectory to continue creating symlinks
-	for _, dir := range source.subdirectories {
-		createGallery(dir, sourceRootDir, gallery, fullsizeImageJobs, thumbnailImageJobs, fullsizeVideoJobs, thumbnailVideoJobs)
-	}
-
-	if len(source.subdirectories) > 0 || len(source.files) > 0 {
-		createHTML(source.subdirectories, source.files, sourceRootDir, htmlDirectoryPath)
 	}
 }
 
-func copy(sourceDir string, destDir string, filename string) {
+func copy(sourceDir string, destDir string, filename string, dryRun bool) {
 	sourceFilename := filepath.Join(sourceDir, filename)
 	destFilename := filepath.Join(destDir, filename)
 
-	_, err := os.Stat(sourceFilename)
-	checkError(err)
-	if err != nil {
-		return
-	}
-
-	sourceHandle, err := os.Open(sourceFilename)
-	checkError(err)
-	if err != nil {
-		return
-	}
-	defer sourceHandle.Close()
-
-	destHandle, err := os.Create(destFilename)
-	checkError(err)
-	if err != nil {
-		return
-	}
-	defer destHandle.Close()
-
-	_, err = io.Copy(destHandle, sourceHandle)
-	checkError(err)
-	if err != nil {
-		return
-	}
-}
-
-func copyRootAssets(gallery directory) {
-	for _, file := range assetCSS {
-		copy(assetDirectory, gallery.absPath, file)
-	}
-	for _, file := range assetJS {
-		copy(assetDirectory, gallery.absPath, file)
-	}
-	copy(assetDirectory, gallery.absPath, assetFolderImage)
-	copy(assetDirectory, gallery.absPath, assetBackImage)
-}
-
-func getHTMLRelPath(originalRelPath string, newRootDir string, sourceRootDir string, folderThumbnail bool) (thumbnailRelPath string) {
-	// Calculate relative path to know how many /../ we need to put into URL to get to root of Gallery
-	directoryList := strings.Split(originalRelPath, "/")
-	// Subtract filename from length
-	// HTML files have file thumbnails, pictures and links and folder thumbnails - the latter
-	// are one level deeper but linked on the same level, thus the hack below
-	var directoryDepth int
-	if folderThumbnail {
-		directoryDepth = len(directoryList) - 3
-	} else {
-		directoryDepth = len(directoryList) - 2
-	}
-	var escapeStringArray []string
-	for j := 0; j < directoryDepth; j++ {
-		escapeStringArray = append(escapeStringArray, "..")
-	}
-
-	return filepath.Join(strings.Join(escapeStringArray, "/"), strings.Replace(originalRelPath, sourceRootDir, newRootDir, 1))
-}
-
-// getHTMLRootPathRelative gets the relative ../../ needed to get to the gallery root path
-// filename provided is a given file in the directory we're in
-// we strip the filename and source gallery root directory to get the
-// number of subdirectories we've descended. Used to link to CSS/JS assets in gallery root.
-func getHTMLRootPathRelative(filename string) (pathRelative string) {
-	directoryList := strings.Split(filename, "/")
-	pathRelative = ""
-	for i := 2; i < len(directoryList); i = i + 1 {
-		pathRelative = pathRelative + "../"
-	}
-	return pathRelative
-}
-
-func createHTML(subdirectories []directory, files []file, sourceRootDir string, htmlDirectoryPath string) {
-	htmlFilePath := filepath.Join(htmlDirectoryPath, "index.html")
-
-	var rootEscape string
-	if len(files) > 0 {
-		rootEscape = getHTMLRootPathRelative(files[0].relPath)
-	} else {
-		rootEscape = getHTMLRootPathRelative(subdirectories[0].relPath + "/")
-	}
-	var data htmlData
-
-	for _, file := range assetCSS {
-		data.CSS = append(data.CSS, rootEscape+file)
-	}
-	for _, file := range assetJS {
-		data.JS = append(data.JS, rootEscape+file)
-	}
-	data.FolderIcon = rootEscape + assetFolderImage
-	if len(rootEscape) > 0 {
-		data.BackIcon = rootEscape + assetBackImage
-	}
-
-	data.Title = filepath.Base(htmlDirectoryPath)
-	for _, dir := range subdirectories {
-		data.Subdirectories = append(data.Subdirectories, dir.name)
-	}
-	for _, file := range files {
-		if isImageFile(file.absPath) {
-			data.Files = append(data.Files, struct {
-				Filename  string
-				Thumbnail string
-				Fullsize  string
-				Original  string
-			}{Filename: file.name, Thumbnail: getHTMLRelPath(stripExtension(file.relPath)+thumbnailExtension, optThumbnailDir, sourceRootDir, false), Fullsize: getHTMLRelPath(stripExtension(file.relPath)+fullsizePictureExtension, optFullsizeDir, sourceRootDir, false), Original: getHTMLRelPath(file.relPath, optSymlinkDir, sourceRootDir, false)})
-		} else if isVideoFile(file.absPath) {
-			data.Files = append(data.Files, struct {
-				Filename  string
-				Thumbnail string
-				Fullsize  string
-				Original  string
-			}{Filename: file.name, Thumbnail: getHTMLRelPath(stripExtension(file.relPath)+thumbnailExtension, optThumbnailDir, sourceRootDir, false), Fullsize: getHTMLRelPath(stripExtension(file.relPath)+fullsizeVideoExtension, optFullsizeDir, sourceRootDir, false), Original: getHTMLRelPath(file.relPath, optSymlinkDir, sourceRootDir, false)})
-		} else {
-			fmt.Println("can't create thumbnail in HTML for file", file.absPath)
-
-		}
-	}
-
-	if optDryRun {
-		fmt.Println("Would create HTML:", htmlFilePath)
-	} else {
-		cookedTemplate, err := template.ParseFiles(filepath.Join(assetDirectory, assetHTMLTemplate))
-		checkError(err)
+	if !dryRun {
+		_, err := os.Stat(sourceFilename)
 		if err != nil {
-			return
+			fmt.Fprintf(os.Stderr, "couldn't copy source file %s: %s\n", sourceFilename, err.Error())
+			exit(1)
 		}
 
-		htmlFileHandle, err := os.Create(htmlFilePath)
-		checkError(err)
+		sourceHandle, err := os.Open(sourceFilename)
 		if err != nil {
-			return
+			fmt.Fprintf(os.Stderr, "couldn't open source file for copy %s: %s\n", sourceFilename, err.Error())
+			exit(1)
 		}
-		defer htmlFileHandle.Close()
+		defer sourceHandle.Close()
 
-		err = cookedTemplate.Execute(htmlFileHandle, data)
-		checkError(err)
+		destHandle, err := os.Create(destFilename)
 		if err != nil {
-			return
+			fmt.Fprintf(os.Stderr, "couldn't create dest file %s: %s\n", destFilename, err.Error())
+			exit(1)
 		}
+		defer destHandle.Close()
 
-		htmlFileHandle.Sync()
-		htmlFileHandle.Close()
-	}
-}
-
-func createDirectory(destination string) {
-	if _, err := os.Stat(destination); os.IsNotExist(err) {
-		if optDryRun {
-			fmt.Println("Would create dir", destination)
-		} else {
-			err := os.Mkdir(destination, optDirectoryMode)
-			checkError(err)
-			if err != nil {
-				return
-			}
-		}
-	}
-}
-
-func symlinkFile(source string, destination string) {
-	if optDryRun {
-		fmt.Println("Would link", source, "to", destination)
-	} else {
-		if _, err := os.Stat(destination); err == nil {
-			err := os.Remove(destination)
-			checkError(err)
-			if err != nil {
-				return
-			}
-		}
-		err := os.Symlink(source, destination)
-		checkError(err)
+		_, err = io.Copy(destHandle, sourceHandle)
 		if err != nil {
-			return
-		}
-	}
-}
-
-func resizeThumbnailVideo(source string, destination string) {
-	ffmpegCommand := exec.Command("ffmpeg", "-y", "-i", source, "-ss", "00:00:00", "-vframes", "1", "-vf", fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d", thumbnailWidth, thumbnailHeight, thumbnailWidth, thumbnailHeight), "-loglevel", "fatal", destination)
-	ffmpegCommand.Stdout = os.Stdout
-	ffmpegCommand.Stderr = os.Stderr
-
-	err := ffmpegCommand.Run()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Could not create thumbnail of video %s", source)
-	}
-
-	// Take thumbnail and overlay triangle image on top of it
-
-	image, err := vips.NewImageFromFile(destination)
-	checkError(err)
-	if err != nil {
-		return
-	}
-
-	// TODO preload overlay globally to reduce overhead
-	playbuttonOverlayImage, err := vips.NewImageFromFile(filepath.Join(assetDirectory, assetPlaybuttonImage))
-	checkError(err)
-	if err != nil {
-		return
-	}
-
-	// overlay play button in the middle of thumbnail picture
-	err = image.Composite(playbuttonOverlayImage, vips.BlendModeOver, (thumbnailWidth/2)-(playbuttonOverlayImage.Width()/2), (thumbnailHeight/2)-(playbuttonOverlayImage.Height()/2))
-	checkError(err)
-	if err != nil {
-		return
-	}
-
-	ep := vips.NewDefaultJPEGExportParams()
-	imageBytes, _, err := image.Export(ep)
-	checkError(err)
-	if err != nil {
-		return
-	}
-
-	err = ioutil.WriteFile(destination, imageBytes, optFileMode)
-	checkError(err)
-	if err != nil {
-		return
-	}
-}
-
-func resizeFullsizeVideo(source string, destination string) {
-	ffmpegCommand := exec.Command("ffmpeg", "-y", "-i", source, "-pix_fmt", "yuv420p", "-vcodec", "libx264", "-acodec", "aac", "-movflags", "faststart", "-r", "24", "-vf", "scale='min(640,iw)':'min(640,ih)':force_original_aspect_ratio=decrease", "-crf", "28", "-loglevel", "fatal", destination)
-	ffmpegCommand.Stdout = os.Stdout
-	ffmpegCommand.Stderr = os.Stderr
-
-	err := ffmpegCommand.Run()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Could not create full-size video of %s", source)
-	}
-}
-
-func resizeThumbnailImage(source string, destination string) {
-	if thumbnailExtension == ".jpg" {
-		image, err := vips.NewImageFromFile(source)
-		checkError(err)
-		if err != nil {
-			return
-		}
-
-		// TODO fix inefficiency, autorotate before resizing
-		// Needed for now to simplify thumbnailing calculations
-		err = image.AutoRotate()
-		checkError(err)
-		if err != nil {
-			return
-		}
-
-		// Resize and crop picture to suitable
-		ratio := float64(image.Height()) / float64(image.Width())
-		targetRatio := float64(thumbnailHeight) / float64(thumbnailWidth)
-
-		if ratio < targetRatio {
-			// Picture is wider than thumbnail
-			// Resize by height to fit thumbnail size, then crop left and right edge
-			scale := float64(thumbnailHeight) / float64(image.Height())
-			err = image.Resize(scale, vips.KernelAuto)
-			checkError(err)
-			if err != nil {
-				return
-			}
-
-			// Calculate how much to crop from each edge
-			cropAmount := (image.Width() - thumbnailWidth) / 2
-			err = image.ExtractArea(cropAmount, 0, thumbnailWidth, thumbnailHeight)
-			checkError(err)
-			if err != nil {
-				return
-			}
-		} else if ratio > targetRatio {
-			// Picture is higher than thumbnail
-			// Resize by width to fit thumbnail size, then crop top and bottom edge
-			scale := float64(thumbnailWidth) / float64(image.Width())
-			err = image.Resize(scale, vips.KernelAuto)
-			checkError(err)
-			if err != nil {
-				return
-			}
-
-			// Calculate how much to crop from each edge
-			cropAmount := (image.Height() - thumbnailHeight) / 2
-			err = image.ExtractArea(0, cropAmount, thumbnailWidth, thumbnailHeight)
-			checkError(err)
-			if err != nil {
-				return
-			}
-		} else {
-			// Picture has same aspect ratio as thumbnail
-			// Resize, but no need to crop after resize
-			scale := float64(thumbnailWidth) / float64(image.Width())
-			err = image.Resize(scale, vips.KernelAuto)
-			checkError(err)
-			if err != nil {
-				return
-			}
-		}
-
-		ep := vips.NewDefaultJPEGExportParams()
-		imageBytes, _, err := image.Export(ep)
-		checkError(err)
-		if err != nil {
-			return
-		}
-
-		err = ioutil.WriteFile(destination, imageBytes, optFileMode)
-		checkError(err)
-		if err != nil {
-			return
+			fmt.Fprintf(os.Stderr, "couldn't copy file %s -> %s: %s\n", sourceFilename, destFilename, err.Error())
+			exit(1)
 		}
 	} else {
-		fmt.Fprintf(os.Stderr, "Can't figure out what format to convert thumbnail image to: %s\n", destination)
+		fmt.Println("would copy", sourceFilename, "to", destFilename)
 	}
 }
 
-func resizeFullsizeImage(source string, destination string) {
-	if fullsizePictureExtension == ".jpg" {
-		image, err := vips.NewImageFromFile(source)
-		checkError(err)
-		if err != nil {
-			return
-		}
-
-		err = image.AutoRotate()
-		checkError(err)
-		if err != nil {
-			return
-		}
-
-		scale := float64(fullsizeMaxWidth) / float64(image.Width())
-		if (scale * float64(image.Height())) > float64(fullsizeMaxHeight) {
-			scale = float64(fullsizeMaxHeight) / float64(image.Height())
-		}
-
-		err = image.Resize(scale, vips.KernelAuto)
-		checkError(err)
-		if err != nil {
-			return
-		}
-
-		ep := vips.NewDefaultJPEGExportParams()
-		imageBytes, _, err := image.Export(ep)
-		checkError(err)
-		if err != nil {
-			return
-		}
-
-		err = ioutil.WriteFile(destination, imageBytes, optFileMode)
-		checkError(err)
-		if err != nil {
-			return
-		}
-	} else {
-		fmt.Fprintf(os.Stderr, "Can't figure out what format to convert full size image to: %s\n", destination)
+func copyRootAssets(gallery directory, dryRun bool, config configuration) {
+	for _, file := range config.asset.CSS {
+		copy(config.asset.directory, gallery.absPath, file, dryRun)
 	}
+	for _, file := range config.asset.JS {
+		copy(config.asset.directory, gallery.absPath, file, dryRun)
+	}
+	copy(config.asset.directory, gallery.absPath, config.asset.folderImage, dryRun)
+	copy(config.asset.directory, gallery.absPath, config.asset.backImage, dryRun)
 }
 
-func fullsizeImageWorker(wg *sync.WaitGroup, imageJobs chan job, progressBar *pb.ProgressBar) {
-	defer wg.Done()
-	for job := range imageJobs {
-		if optVerbose {
-			fmt.Fprintf(os.Stderr, "Creating full size image of %s\n", job.source)
-		}
-		resizeFullsizeImage(job.source, job.destination)
-		if !optDryRun {
-			progressBar.Increment()
-			if optMemoryUse {
-				runtime.GC()
-			}
-		}
-	}
-}
+func createGallery(depth int, source directory, gallery directory, dryRun bool, config configuration) {
+	// TODO
 
-func fullsizeVideoWorker(wg *sync.WaitGroup, videoJobs chan job, progressBar *pb.ProgressBar) {
-	defer wg.Done()
-	for job := range videoJobs {
-		if optVerbose {
-			fmt.Fprintf(os.Stderr, "Creating full size video of %s\n", job.source)
-		}
-		resizeFullsizeVideo(job.source, job.destination)
-		if !optDryRun {
-			progressBar.Increment()
-		}
-	}
-}
-
-func fullsizeCopyFile(source string, destination string, fullsizeImageJobs chan job, fullsizeVideoJobs chan job) {
-	if isImageFile(source) {
-		destination = stripExtension(destination) + fullsizePictureExtension
-		if optDryRun {
-			fmt.Println("Would full-size copy image", source, "to", destination)
-		} else {
-			var imageJob job
-			imageJob.source = source
-			imageJob.destination = destination
-			fullsizeImageJobs <- imageJob
-		}
-	} else if isVideoFile(source) {
-		destination = stripExtension(destination) + fullsizeVideoExtension
-		if optDryRun {
-			fmt.Println("Would full-size copy video", source, "to", destination)
-		} else {
-			var videoJob job
-			videoJob.source = source
-			videoJob.destination = destination
-			fullsizeVideoJobs <- videoJob
-		}
-	} else {
-		fmt.Println("can't recognize file type for full-size copy", source)
-	}
-}
-
-func thumbnailImageWorker(wg *sync.WaitGroup, thumbnailImageJobs chan job) {
-	defer wg.Done()
-	for job := range thumbnailImageJobs {
-		if optVerbose {
-			fmt.Fprintf(os.Stderr, "Creating thumbnail image of %s\n", job.source)
-		}
-		resizeThumbnailImage(job.source, job.destination)
-	}
-}
-
-func thumbnailVideoWorker(wg *sync.WaitGroup, thumbnailVideoJobs chan job) {
-	defer wg.Done()
-	for job := range thumbnailVideoJobs {
-		if optVerbose {
-			fmt.Fprintf(os.Stderr, "Creating thumbnail video of %s\n", job.source)
-		}
-		resizeThumbnailVideo(job.source, job.destination)
-	}
-}
-
-func thumbnailCopyFile(source string, destination string, thumbnailImageJobs chan job, thumbnailVideoJobs chan job) {
-	if isImageFile(source) {
-		destination = stripExtension(destination) + thumbnailExtension
-		if optDryRun {
-			fmt.Println("Would thumbnail copy image", source, "to", destination)
-		} else {
-			var imageJob job
-			imageJob.source = source
-			imageJob.destination = destination
-			thumbnailImageJobs <- imageJob
-		}
-	} else if isVideoFile(source) {
-		destination = stripExtension(destination) + thumbnailExtension
-		if optDryRun {
-			fmt.Println("Would thumbnail copy video", source, "to", destination)
-		} else {
-			var videoJob job
-			videoJob.source = source
-			videoJob.destination = destination
-			thumbnailVideoJobs <- videoJob
-		}
-	} else {
-		fmt.Println("can't recognize file type for thumbnail copy", source)
-	}
-}
-
-func cleanGallery(gallery directory) {
-	for _, file := range gallery.files {
-		if !file.exists {
-			if optDryRun {
-				fmt.Println("Would delete", file.absPath)
-			} else {
-				err := os.Remove(file.absPath)
-				checkError(err)
-				if err != nil {
-					return
-				}
-			}
-
-		}
-	}
-
-	for _, dir := range gallery.subdirectories {
-		cleanGallery(dir)
-	}
-
-	if isEmptyDir(gallery.absPath) {
-		if optDryRun {
-			fmt.Println("Would remove empty directory", gallery.absPath)
-		} else {
-			err := os.Remove(gallery.absPath)
-			checkError(err)
-			if err != nil {
-				return
-			}
-		}
-	}
-}
-
-// Check that source directory root doesn't contain a name reserved for our output directories
-func checkReservedNames(inputDirectory string) {
-	list, err := ioutil.ReadDir(inputDirectory)
-	checkError(err)
-	if err != nil {
-		return
-	}
-
-	for _, entry := range list {
-		if entry.Name() == optSymlinkDir || entry.Name() == optFullsizeDir || entry.Name() == optThumbnailDir {
-			fmt.Fprintf(os.Stderr, "Source directory root cannot contain file or folder with\n")
-			fmt.Fprintf(os.Stderr, "reserved names '%s', '%s' or '%s'\n", optSymlinkDir, optFullsizeDir, optThumbnailDir)
-			os.Exit(1)
-		}
-	}
+	// createHTML(depth, source.subdirectories, source.files)
 }
 
 func main() {
-	var inputDirectory string
-	var outputDirectory string
-
-	var gallery directory
-	var source directory
-
-	// parse command-line args and set HTML template ready
-	inputDirectory, outputDirectory = parseArgs()
-
-	fmt.Println(os.Args[0], ": Creating photo gallery")
-	fmt.Println("")
-	fmt.Println("Gathering photos and videos from:", inputDirectory)
-	fmt.Println("Creating static gallery in:", outputDirectory)
-	if optDryRun {
-		fmt.Println("Only dry run, not actually changing anything")
-	}
-	fmt.Println("")
-
-	// check that source directory doesn't have reserved directory or file names
-	checkReservedNames(inputDirectory)
-
-	// create directory structs by recursing through source and gallery directories
-	if _, err := os.Stat(outputDirectory); !os.IsNotExist(err) {
-		gallery = recurseDirectory(outputDirectory, "")
-	} else {
-		gallery.name = filepath.Base(outputDirectory)
-		gallery.absPath, _ = filepath.Abs(outputDirectory)
-		gallery.relPath = ""
-	}
-	source = recurseDirectory(inputDirectory, "")
-
-	// check whether gallery already has up-to-date pictures of sources,
-	// mark existing pictures in structs
-	for _, dir := range gallery.subdirectories {
-		if dir.name == optSymlinkDir {
-			compareDirectories(&source, &dir)
-		}
-	}
-	for _, dir := range gallery.subdirectories {
-		if dir.name == optFullsizeDir {
-			compareDirectories(&source, &dir)
-		}
-	}
-	for _, dir := range gallery.subdirectories {
-		if dir.name == optThumbnailDir {
-			compareDirectories(&source, &dir)
-		}
+	// Define command-line arguments
+	var args struct {
+		Source  string `arg:"positional,required" help:"Source directory for images/videos"`
+		Gallery string `arg:"positional,required" help:"Destination directory to create gallery in"`
+		Verbose bool   `arg:"-v,--verbose" help:"verbosity level"`
+		DryRun  bool   `arg:"--dry-run" help:"dry run; don't change anything, just print what would be done"`
 	}
 
+	// Parse command-line arguments
+	arg.MustParse(&args)
+
+	// Validate source and gallery arguments, make paths absolute
+	args.Source, args.Gallery = validateSourceAndGallery(args.Source, args.Gallery)
+
+	// Initialize configuration (assets, directories, file types)
+	config := initializeConfig()
+
+	fmt.Println("Creating gallery...")
+	fmt.Println("Source:", args.Source)
+	fmt.Println("Gallery:", args.Gallery)
+	fmt.Println()
+	fmt.Println("Finding all media files...")
+
+	// Creating a directory struct of both source as well as gallery directories
+	source := createDirectoryTree(args.Source, "")
+	gallery := createDirectoryTree(args.Gallery, "")
+
+	// Check which source media exists in gallery
+	compareDirectoryTrees(&source, &gallery, config)
+
+	// Count number of source files which don't exist in gallery
 	changes := countChanges(source)
 	if changes > 0 {
-		if optCleanUp {
-			fmt.Print("Cleaning up unused media files in output directory...")
-			if _, err := os.Stat(gallery.absPath); !os.IsNotExist(err) {
-				cleanGallery(gallery)
-				fmt.Println("done.")
-			} else {
-				fmt.Println("already empty.")
-			}
+		fmt.Println(changes, "files to update")
+		if !exists(gallery.absPath) {
+			createDirectory(gallery.absPath, args.DryRun, config)
 		}
 
-		// create gallery directory if it doesn't exist
-		createDirectory(gallery.absPath)
-
 		var progressBar *pb.ProgressBar
-		if !optDryRun {
-			fmt.Println("Creating gallery...")
+		if !args.DryRun {
 			progressBar = pb.StartNew(changes)
-			if optVerbose {
+			if args.Verbose {
 				vips.LoggingSettings(nil, vips.LogLevelDebug)
 				vips.Startup(&vips.Config{
 					CacheTrace:   false,
@@ -963,47 +527,21 @@ func main() {
 			defer vips.Shutdown()
 		}
 
-		fullsizeImageJobs := make(chan job, 100000)
-		thumbnailImageJobs := make(chan job, 100000)
-		fullsizeVideoJobs := make(chan job, 100000)
-		thumbnailVideoJobs := make(chan job, 100000)
+		createGallery(0, source, gallery, args.DryRun, config)
+		copyRootAssets(gallery, args.DryRun, config)
 
-		var wg sync.WaitGroup
-
-		for i := 1; i <= imageWorkerPoolSize; i++ {
-			wg.Add(2)
-			go fullsizeImageWorker(&wg, fullsizeImageJobs, progressBar)
-			go thumbnailImageWorker(&wg, thumbnailImageJobs)
-		}
-
-		if !optIgnoreVideos {
-			for i := 1; i <= videoWorkerPoolSize; i++ {
-				wg.Add(2)
-				go fullsizeVideoWorker(&wg, fullsizeVideoJobs, progressBar)
-				go thumbnailVideoWorker(&wg, thumbnailVideoJobs)
-			}
-		}
-
-		// create the gallery
-		createGallery(source, source.name, gallery, fullsizeImageJobs, thumbnailImageJobs, fullsizeVideoJobs, thumbnailVideoJobs)
-
-		if !optDryRun {
-			copyRootAssets(gallery)
-		}
-
-		close(fullsizeImageJobs)
-		close(fullsizeVideoJobs)
-		close(thumbnailImageJobs)
-		close(thumbnailVideoJobs)
-		wg.Wait()
-
-		if !optDryRun {
+		if !args.DryRun {
 			progressBar.Finish()
 		}
-		fmt.Println("Gallery created!")
+
+		fmt.Println("Gallery updated!")
 	} else {
-		fmt.Println("No pictures to update!")
+		fmt.Println("Gallery already up to date!")
 	}
 
-	fmt.Println("\nDone!")
+	fmt.Println("source:")
+	pretty.Print(source)
+
+	fmt.Println("gallery:")
+	pretty.Print(gallery)
 }
