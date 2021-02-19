@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"fmt"
 	"io"
 	"log"
@@ -16,20 +17,15 @@ import (
 	"github.com/alexflint/go-arg"
 )
 
+// Embed all static assets
+//go:embed assets
+var assets embed.FS
+
 // Define global exit function, so unit tests can override this
 var exit = os.Exit
 
 // configuration state is stored in this struct
 type configuration struct {
-	asset struct {
-		directory       string
-		indexTemplate   string
-		playbuttonImage string
-		folderImage     string
-		backImage       string
-		CSS             []string
-		JS              []string
-	}
 	files struct {
 		originalDir    string
 		fullsizeDir    string
@@ -51,14 +47,6 @@ type configuration struct {
 
 // initialize the configuration with hardcoded defaults
 func initializeConfig() (config configuration) {
-	config.asset.directory = "/usr/local/share/fastgallery"
-	config.asset.indexTemplate = "index.gohtml"
-	config.asset.playbuttonImage = "play.png"
-	config.asset.folderImage = "folder.png"
-	config.asset.backImage = "back.png"
-	config.asset.CSS = []string{"fastgallery.css", "primer.css"}
-	config.asset.JS = []string{"fastgallery.js", "feather.min.js"}
-
 	config.files.originalDir = "_original"
 	config.files.fullsizeDir = "_fullsize"
 	config.files.thumbnailDir = "_thumbnail"
@@ -423,6 +411,7 @@ func createDirectory(destination string, dryRun bool, config configuration) {
 	}
 }
 
+// TODO deprecate copy() function
 func copy(sourceDir string, destDir string, filename string, dryRun bool) {
 	sourceFilename := filepath.Join(sourceDir, filename)
 	destFilename := filepath.Join(destDir, filename)
@@ -458,15 +447,44 @@ func copy(sourceDir string, destDir string, filename string, dryRun bool) {
 	}
 }
 
-func copyRootAssets(gallery directory, dryRun bool, config configuration) {
-	for _, file := range config.asset.CSS {
-		copy(config.asset.directory, gallery.absPath, file, dryRun)
+// copyRootAssets copies all the embedded assets to the root directory of the gallery
+func copyRootAssets(gallery directory, dryRun bool, fileMode os.FileMode) {
+	// TODO add dry-run
+	assetDirectoryListing, err := assets.ReadDir("assets")
+	if err != nil {
+		log.Fatal("couldn't open embedded assets:", err.Error())
 	}
-	for _, file := range config.asset.JS {
-		copy(config.asset.directory, gallery.absPath, file, dryRun)
+
+	// Iterate through all the embedded assets
+	for _, entry := range assetDirectoryListing {
+		if !entry.IsDir() {
+			switch filepath.Ext(strings.ToLower(entry.Name())) {
+			// Copy all javascript and CSS files
+			case ".js", ".css":
+				filebuffer, err := assets.ReadFile("assets/" + entry.Name())
+				if err != nil {
+					log.Fatal("couldn't open embedded asset:", entry.Name(), ":", err.Error())
+				}
+				err = os.WriteFile(gallery.absPath+"/"+entry.Name(), filebuffer, fileMode)
+				if err != nil {
+					log.Fatal("couldn't write embedded asset:", gallery.absPath+"/"+entry.Name(), ":", err.Error())
+				}
+			}
+
+			switch entry.Name() {
+			// Copy back.png and folder.png
+			case "back.png", "folder.png":
+				filebuffer, err := assets.ReadFile("assets/" + entry.Name())
+				if err != nil {
+					log.Fatal("couldn't open embedded asset:", entry.Name(), ":", err.Error())
+				}
+				err = os.WriteFile(gallery.absPath+"/"+entry.Name(), filebuffer, fileMode)
+				if err != nil {
+					log.Fatal("couldn't write embedded asset:", gallery.absPath+"/"+entry.Name(), ":", err.Error())
+				}
+			}
+		}
 	}
-	copy(config.asset.directory, gallery.absPath, config.asset.folderImage, dryRun)
-	copy(config.asset.directory, gallery.absPath, config.asset.backImage, dryRun)
 }
 
 func createGallery(depth int, source directory, gallery directory, dryRun bool, config configuration) {
@@ -531,7 +549,7 @@ func main() {
 		}
 
 		createGallery(0, source, gallery, args.DryRun, config)
-		copyRootAssets(gallery, args.DryRun, config)
+		copyRootAssets(gallery, args.DryRun, config.files.fileMode)
 
 		if !args.DryRun {
 			progressBar.Finish()

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -19,7 +18,7 @@ func TestValidateSourceAndGallery(t *testing.T) {
 	defer func() { exit = originalExit }()
 	exit = testExit
 
-	tempDir, err := ioutil.TempDir("", "fastgallery-test-")
+	tempDir, err := os.MkdirTemp("", "fastgallery-test-")
 	if err != nil {
 		t.Error("couldn't create temporary directory")
 	}
@@ -39,7 +38,7 @@ func TestValidateSourceAndGallery(t *testing.T) {
 }
 
 func TestIsDirectory(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "fastgallery-test-")
+	tempDir, err := os.MkdirTemp("", "fastgallery-test-")
 	if err != nil {
 		t.Error("couldn't create temporary directory")
 	}
@@ -71,7 +70,7 @@ func TestIsDirectory(t *testing.T) {
 }
 
 func TestExists(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "fastgallery-test-")
+	tempDir, err := os.MkdirTemp("", "fastgallery-test-")
 	if err != nil {
 		t.Error("couldn't create temporary directory")
 	}
@@ -89,7 +88,7 @@ func TestExists(t *testing.T) {
 }
 
 func TestDirHasMediaFiles(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "fastgallery-test-")
+	tempDir, err := os.MkdirTemp("", "fastgallery-test-")
 	if err != nil {
 		t.Error("couldn't create temporary directory")
 	}
@@ -106,7 +105,7 @@ func TestDirHasMediaFiles(t *testing.T) {
 }
 
 func TestDirHasMediaFilesFailing(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "fastgallery-test-")
+	tempDir, err := os.MkdirTemp("", "fastgallery-test-")
 	if err != nil {
 		t.Error("couldn't create temporary directory")
 	}
@@ -123,7 +122,7 @@ func TestDirHasMediaFilesFailing(t *testing.T) {
 }
 
 func TestDirHasMediaFilesRecurse(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "fastgallery-test-")
+	tempDir, err := os.MkdirTemp("", "fastgallery-test-")
 	if err != nil {
 		t.Error("couldn't create temporary directory")
 	}
@@ -146,7 +145,7 @@ func TestDirHasMediaFilesRecurse(t *testing.T) {
 }
 
 func TestDirHasMediaFilesRecurseFailing(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "fastgallery-test-")
+	tempDir, err := os.MkdirTemp("", "fastgallery-test-")
 	if err != nil {
 		t.Error("couldn't create temporary directory")
 	}
@@ -178,6 +177,26 @@ func TestIsXxxFile(t *testing.T) {
 	assert.True(t, isMediaFile("test.mp4"))
 	assert.True(t, isMediaFile("test.jpg"))
 	assert.False(t, isMediaFile("test.txt"))
+}
+
+func TestCopyRootAssets(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "fastgallery-test-")
+	if err != nil {
+		t.Error("couldn't create temporary directory")
+	}
+	defer os.RemoveAll(tempDir)
+
+	var tempGallery directory
+	tempGallery.absPath = tempDir
+
+	copyRootAssets(tempGallery, false, 0644)
+
+	assert.FileExists(t, tempDir+"/back.png")
+	assert.FileExists(t, tempDir+"/folder.png")
+	assert.FileExists(t, tempDir+"/fastgallery.css")
+	assert.FileExists(t, tempDir+"/fastgallery.js")
+	assert.FileExists(t, tempDir+"/feather.min.js")
+	assert.FileExists(t, tempDir+"/primer.css")
 }
 
 // TODO tests for
