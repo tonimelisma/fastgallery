@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -190,7 +189,7 @@ func validateSourceAndGallery(source string, gallery string) (string, string) {
 // If there's a subdirectory that's empty or that has directories or files which
 // aren't media files, we leave that out of the directory tree.
 func dirHasMediafiles(directory string) (isEmpty bool) {
-	list, err := ioutil.ReadDir(directory)
+	list, err := os.ReadDir(directory)
 	if err != nil {
 		// If we can't read the directory contents, it doesn't have media files in it
 		return false
@@ -274,7 +273,7 @@ func createDirectoryTree(absoluteDirectory string, parentDirectory string) (tree
 	tree.modTime = absoluteDirectoryStat.ModTime()
 
 	// List directory contents
-	list, err := ioutil.ReadDir(absoluteDirectory)
+	list, err := os.ReadDir(absoluteDirectory)
 	if err != nil {
 		log.Fatal("Couldn't list directory contents:", absoluteDirectory)
 	}
@@ -290,11 +289,15 @@ func createDirectoryTree(absoluteDirectory string, parentDirectory string) (tree
 				tree.subdirectories = append(tree.subdirectories, entrySubTree)
 			}
 		} else if isMediaFile(entryAbsPath) {
+			entryFileInfo, err := entry.Info()
+			if err != nil {
+				log.Fatal("Couldn't stat file information for media file:", entry.Name())
+			}
 			entryFile := file{
 				name:    entry.Name(),
 				relPath: entryRelPath,
 				absPath: entryAbsPath,
-				modTime: entry.ModTime(),
+				modTime: entryFileInfo.ModTime(),
 				exists:  false,
 			}
 			tree.files = append(tree.files, entryFile)
