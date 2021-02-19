@@ -397,12 +397,12 @@ func countChanges(source directory) (outputChanges int) {
 	return outputChanges
 }
 
-func createDirectory(destination string, dryRun bool, config configuration) {
+func createDirectory(destination string, dryRun bool, dirMode os.FileMode) {
 	if _, err := os.Stat(destination); os.IsNotExist(err) {
 		if dryRun {
 			fmt.Println("Would create directory:", destination)
 		} else {
-			err := os.Mkdir(destination, config.files.directoryMode)
+			err := os.Mkdir(destination, dirMode)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "couldn't create directory %s: %s\n", destination, err.Error())
 				exit(1)
@@ -461,26 +461,34 @@ func copyRootAssets(gallery directory, dryRun bool, fileMode os.FileMode) {
 			switch filepath.Ext(strings.ToLower(entry.Name())) {
 			// Copy all javascript and CSS files
 			case ".js", ".css":
-				filebuffer, err := assets.ReadFile("assets/" + entry.Name())
-				if err != nil {
-					log.Fatal("couldn't open embedded asset:", entry.Name(), ":", err.Error())
-				}
-				err = os.WriteFile(gallery.absPath+"/"+entry.Name(), filebuffer, fileMode)
-				if err != nil {
-					log.Fatal("couldn't write embedded asset:", gallery.absPath+"/"+entry.Name(), ":", err.Error())
+				if !dryRun {
+					filebuffer, err := assets.ReadFile("assets/" + entry.Name())
+					if err != nil {
+						log.Fatal("couldn't open embedded asset:", entry.Name(), ":", err.Error())
+					}
+					err = os.WriteFile(gallery.absPath+"/"+entry.Name(), filebuffer, fileMode)
+					if err != nil {
+						log.Fatal("couldn't write embedded asset:", gallery.absPath+"/"+entry.Name(), ":", err.Error())
+					}
+				} else {
+					fmt.Println("Would copy JS/CSS file", entry.Name(), "to", gallery.absPath)
 				}
 			}
 
 			switch entry.Name() {
 			// Copy back.png and folder.png
 			case "back.png", "folder.png":
-				filebuffer, err := assets.ReadFile("assets/" + entry.Name())
-				if err != nil {
-					log.Fatal("couldn't open embedded asset:", entry.Name(), ":", err.Error())
-				}
-				err = os.WriteFile(gallery.absPath+"/"+entry.Name(), filebuffer, fileMode)
-				if err != nil {
-					log.Fatal("couldn't write embedded asset:", gallery.absPath+"/"+entry.Name(), ":", err.Error())
+				if !dryRun {
+					filebuffer, err := assets.ReadFile("assets/" + entry.Name())
+					if err != nil {
+						log.Fatal("couldn't open embedded asset:", entry.Name(), ":", err.Error())
+					}
+					err = os.WriteFile(gallery.absPath+"/"+entry.Name(), filebuffer, fileMode)
+					if err != nil {
+						log.Fatal("couldn't write embedded asset:", gallery.absPath+"/"+entry.Name(), ":", err.Error())
+					}
+				} else {
+					fmt.Println("Would copy icon", entry.Name(), "to", gallery.absPath)
 				}
 			}
 		}
@@ -529,7 +537,7 @@ func main() {
 	if changes > 0 {
 		fmt.Println(changes, "files to update")
 		if !exists(gallery.absPath) {
-			createDirectory(gallery.absPath, args.DryRun, config)
+			createDirectory(gallery.absPath, args.DryRun, config.files.directoryMode)
 		}
 
 		var progressBar *pb.ProgressBar

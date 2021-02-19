@@ -94,12 +94,12 @@ func TestDirHasMediaFiles(t *testing.T) {
 	}
 	defer os.RemoveAll(tempDir)
 
-	emptyFile, err := os.Create(tempDir + "/file.jpg")
+	emptyFile, err := os.Create(tempDir + "/file.raw")
 	if err != nil {
 		t.Error("couldn't create symlink")
 	}
 	defer emptyFile.Close()
-	defer os.RemoveAll(tempDir + "/file.jpg")
+	defer os.RemoveAll(tempDir + "/file.raw")
 
 	assert.True(t, dirHasMediafiles(tempDir))
 }
@@ -199,9 +199,43 @@ func TestCopyRootAssets(t *testing.T) {
 	assert.FileExists(t, tempDir+"/primer.css")
 }
 
+func TestStripExtension(t *testing.T) {
+	assert.Equal(t, "file", stripExtension("file.jpg"))
+	assert.NotEqual(t, "file", stripExtension("file/"))
+}
+
+func TestReservedDirectory(t *testing.T) {
+	myConfig := initializeConfig()
+
+	assert.True(t, reservedDirectory(myConfig.files.thumbnailDir, myConfig))
+	assert.True(t, reservedDirectory(myConfig.files.fullsizeDir, myConfig))
+	assert.True(t, reservedDirectory(myConfig.files.originalDir, myConfig))
+	assert.False(t, reservedDirectory("diipadaapa", myConfig))
+}
+
+func TestCreateDirectory(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "fastgallery-test-")
+	if err != nil {
+		t.Error("couldn't create temporary directory")
+	}
+	defer os.RemoveAll(tempDir)
+
+	myConfig := initializeConfig()
+
+	createDirectory(tempDir+"/xyz", true, myConfig.files.directoryMode)
+	assert.NoDirExists(t, tempDir+"/xyz")
+
+	createDirectory(tempDir+"/xyz", false, myConfig.files.directoryMode)
+	assert.DirExists(t, tempDir+"/xyz")
+	os.RemoveAll(tempDir + "/xyz")
+}
+
 // TODO tests for
 // createDirectoryTree
-// stripExtension
 // compareDirectoryTrees
+// countChanges
+// createDirectory
+// copy(?)
+// createGallery
 //   - exists, doesn't exist, some gallery files exist / some don't
 //   - thumbnail modified earlier than original or vice versa
