@@ -230,12 +230,106 @@ func TestCreateDirectory(t *testing.T) {
 	os.RemoveAll(tempDir + "/xyz")
 }
 
+func TestCreateDirectoryTree(t *testing.T) {
+	myConfig := initializeConfig()
+
+	tempDir, err := os.MkdirTemp("", "fastgallery-test-")
+	if err != nil {
+		t.Error("couldn't create temporary directory")
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create source directory with two files, a subdir with third file
+	err = os.Mkdir(tempDir+"/source", 0755)
+	if err != nil {
+		t.Error("couldn't create source subdirectory")
+	}
+	defer os.RemoveAll(tempDir + "/source")
+
+	emptyFile, err := os.Create(tempDir + "/source/file.jpg")
+	if err != nil {
+		t.Error("couldn't create file")
+	}
+	defer emptyFile.Close()
+	defer os.RemoveAll(tempDir + "/source/file.jpg")
+
+	emptyFile2, err := os.Create(tempDir + "/source/file2.jpg")
+	if err != nil {
+		t.Error("couldn't create file2")
+	}
+	defer emptyFile2.Close()
+	defer os.RemoveAll(tempDir + "/source/file2.jpg")
+
+	err = os.Mkdir(tempDir+"/source/subdir", 0755)
+	if err != nil {
+		t.Error("couldn't create source subdirectory's subdirectory")
+	}
+	defer os.RemoveAll(tempDir + "/source/subdir")
+
+	emptyFile3, err := os.Create(tempDir + "/source/subdir/file.jpg")
+	if err != nil {
+		t.Error("couldn't create file in subdir")
+	}
+	defer emptyFile3.Close()
+	defer os.RemoveAll(tempDir + "/source/subdir/file.jpg")
+
+	// Create gallery subdirectory with one matching file
+	err = os.Mkdir(tempDir+"/gallery", 0755)
+	if err != nil {
+		t.Error("couldn't create gallery subdirectory")
+	}
+	defer os.RemoveAll(tempDir + "/gallery")
+
+	err = os.Mkdir(tempDir+"/gallery/"+myConfig.files.fullsizeDir, 0755)
+	if err != nil {
+		t.Error("couldn't create gallery subdirectory for fullsize")
+	}
+	defer os.RemoveAll(tempDir + "/gallery/" + myConfig.files.fullsizeDir)
+
+	err = os.Mkdir(tempDir+"/gallery/"+myConfig.files.thumbnailDir, 0755)
+	if err != nil {
+		t.Error("couldn't create gallery subdirectory for thumbnail")
+	}
+	defer os.RemoveAll(tempDir + "/gallery/" + myConfig.files.thumbnailDir)
+
+	err = os.Mkdir(tempDir+"/gallery/"+myConfig.files.originalDir, 0755)
+	if err != nil {
+		t.Error("couldn't create gallery subdirectory for original")
+	}
+	defer os.RemoveAll(tempDir + "/gallery/" + myConfig.files.originalDir)
+
+	emptyFile4, err := os.Create(tempDir + "/gallery/" + myConfig.files.originalDir + "/file.jpg")
+	if err != nil {
+		t.Error("couldn't create original gallery file")
+	}
+	defer emptyFile4.Close()
+	defer os.RemoveAll(tempDir + "/gallery/" + myConfig.files.originalDir + "/file.jpg")
+
+	emptyFile5, err := os.Create(tempDir + "/gallery/" + myConfig.files.thumbnailDir + "/file.jpg")
+	if err != nil {
+		t.Error("couldn't create original gallery file")
+	}
+	defer emptyFile5.Close()
+	defer os.RemoveAll(tempDir + "/gallery/" + myConfig.files.thumbnailDir + "/file.jpg")
+
+	emptyFile6, err := os.Create(tempDir + "/gallery/" + myConfig.files.fullsizeDir + "/file.jpg")
+	if err != nil {
+		t.Error("couldn't create original gallery file")
+	}
+	defer emptyFile6.Close()
+	defer os.RemoveAll(tempDir + "/gallery/" + myConfig.files.fullsizeDir + "/file.jpg")
+
+	source := createDirectoryTree(tempDir+"/source", "")
+	gallery := createDirectoryTree(tempDir+"/gallery", "")
+
+	compareDirectoryTrees(&source, &gallery, myConfig)
+
+	changes := countChanges(source)
+
+	assert.EqualValues(t, 2, changes)
+}
+
 // TODO tests for
-// createDirectoryTree
-// compareDirectoryTrees
-// countChanges
-// createDirectory
-// copy(?)
 // createGallery
 //   - exists, doesn't exist, some gallery files exist / some don't
 //   - thumbnail modified earlier than original or vice versa
