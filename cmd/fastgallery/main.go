@@ -449,7 +449,6 @@ func copy(sourceDir string, destDir string, filename string, dryRun bool) {
 
 // copyRootAssets copies all the embedded assets to the root directory of the gallery
 func copyRootAssets(gallery directory, dryRun bool, fileMode os.FileMode) {
-	// TODO add dry-run
 	assetDirectoryListing, err := assets.ReadDir("assets")
 	if err != nil {
 		log.Fatal("couldn't open embedded assets:", err.Error())
@@ -495,10 +494,24 @@ func copyRootAssets(gallery directory, dryRun bool, fileMode os.FileMode) {
 	}
 }
 
-func createGallery(depth int, source directory, gallery directory, dryRun bool, config configuration) {
-	// TODO
+func createHTML(depth int, subdirectories []directory, files []file) {
+	fmt.Println("creating HTML:", depth)
+}
 
-	// createHTML(depth, source.subdirectories, source.files)
+func createGallery(depth int, source directory, gallery directory, dryRun bool, config configuration, progressBar *pb.ProgressBar) {
+	// replace println:s with actual functionality, add concurrence
+	for _, file := range source.files {
+		if !file.exists {
+			fmt.Println("converting:", file.name, file.relPath, file.absPath)
+		}
+	}
+
+	createHTML(depth, source.subdirectories, source.files)
+
+	for _, subdir := range source.subdirectories {
+		fmt.Println("recursing to:", subdir.name, subdir.relPath, subdir.absPath)
+		createGallery(depth+1, subdir, gallery, dryRun, config, progressBar)
+	}
 }
 
 func main() {
@@ -556,8 +569,8 @@ func main() {
 			defer vips.Shutdown()
 		}
 
-		createGallery(0, source, gallery, args.DryRun, config)
 		copyRootAssets(gallery, args.DryRun, config.files.fileMode)
+		createGallery(0, source, gallery, args.DryRun, config, progressBar)
 
 		if !args.DryRun {
 			progressBar.Finish()
