@@ -83,6 +83,8 @@ type file struct {
 
 // directory struct is one directory, which contains files and subdirectories
 // relPath is the relative path from source/gallery root directory
+// For source directories, exists reflects whether the directory exists in the gallery
+// For gallery directories, exists reflects whether there's a corresponding source directory
 type directory struct {
 	name           string
 	relPath        string
@@ -90,6 +92,7 @@ type directory struct {
 	modTime        time.Time
 	files          []file
 	subdirectories []directory
+	exists         bool
 }
 
 // exists checks whether given file, directory or symlink exists
@@ -316,9 +319,49 @@ func reservedDirectory(path string, config configuration) bool {
 	return false
 }
 
+// hasDirectoryChanged checks whether the gallery directory has changed and thus
+// the HTML file needs to be updated. Could be due to:
+// At least one non-existent source file or directory (will be created in gallery)
+// We're doing a cleanup, and at least one non-existent gallery file or directory (will be removed from gallery HTML)
+func hasDirectoryChanged(source directory, gallery directory, cleanUp bool) bool {
+	for _, sourceFile := range source.files {
+		if !sourceFile.exists {
+			return true
+		}
+	}
+
+	for _, sourceDir := range source.subdirectories {
+		if !sourceDir.exists {
+			return true
+		}
+	}
+
+	if cleanUp {
+		for _, galleryFile := range gallery.files {
+			if !galleryFile.exists {
+				return true
+			}
+		}
+
+		for _, galleryDir := range gallery.subdirectories {
+			if !galleryDir.exists {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 // compareDirectoryTrees compares two directory trees (source and gallery) and marks
 // each file that exists in both
 func compareDirectoryTrees(source *directory, gallery *directory, config configuration) {
+	// If we are comparing two directories, we know they both exist so we can set the
+	// directory struct exists boolean
+	source.exists = true
+	gallery.exists = true
+
+	// Iterate over each file in source directory to see whether it exists in gallery
 	for i, sourceFile := range source.files {
 		sourceFileBasename := stripExtension(sourceFile.name)
 
@@ -332,6 +375,7 @@ func compareDirectoryTrees(source *directory, gallery *directory, config configu
 					outputFileBasename := stripExtension(outputFile.name)
 					if sourceFileBasename == outputFileBasename {
 						thumbnailFile = &outputFile
+						thumbnailFile.exists = true
 					}
 				}
 			}
@@ -341,6 +385,7 @@ func compareDirectoryTrees(source *directory, gallery *directory, config configu
 					outputFileBasename := stripExtension(outputFile.name)
 					if sourceFileBasename == outputFileBasename {
 						fullsizeFile = &outputFile
+						fullsizeFile.exists = true
 					}
 				}
 			}
@@ -350,21 +395,18 @@ func compareDirectoryTrees(source *directory, gallery *directory, config configu
 					outputFileBasename := stripExtension(outputFile.name)
 					if sourceFileBasename == outputFileBasename {
 						originalFile = &outputFile
+						originalFile.exists = true
 					}
 				}
 			}
 		}
 
-		// If all of thumbnail, full-size and original files exist in gallery, mark them
-		// as existing so they aren't deleted in a clean-up. If only 1 or 2 of 3 exist,
-		// they might be remnants of an aborted previous run. Clean-up will take care of them.
+		// If all of thumbnail, full-size and original files exist in gallery, and they're
+		// modified after the source file, the source file exists and is up to date.
+		// Otherwise we overwrite gallery files in case source file's been updated since the thumbnail
+		// was created.
 		if thumbnailFile != nil && fullsizeFile != nil && originalFile != nil {
-			thumbnailFile.exists = true
-			fullsizeFile.exists = true
-			originalFile.exists = true
 			if !thumbnailFile.modTime.Before(sourceFile.modTime) {
-				// Overwrite gallery files in case source file's been updated since the thumbnail
-				// was created.
 				source.files[i].exists = true
 			}
 		}
@@ -411,8 +453,12 @@ func createDirectory(destination string, dryRun bool, dirMode os.FileMode) {
 	}
 }
 
-// TODO deprecate copy() function
-func copy(sourceDir string, destDir string, filename string, dryRun bool) {
+func symlinkFile(sourceDir string, destDir string, filename string, dryRun bool) {
+	// TODO functionality
+}
+
+// TODO deprecate copyFile() function or use for originals
+func copyFile(sourceDir string, destDir string, filename string, dryRun bool) {
 	sourceFilename := filepath.Join(sourceDir, filename)
 	destFilename := filepath.Join(destDir, filename)
 
@@ -494,23 +540,50 @@ func copyRootAssets(gallery directory, dryRun bool, fileMode os.FileMode) {
 	}
 }
 
-func createHTML(depth int, subdirectories []directory, files []file) {
-	fmt.Println("creating HTML:", depth)
+func createHTML(depth int, source directory, dryRun bool) {
+	// TODO functionality
+	// TODO dry-run
 }
 
-func createGallery(depth int, source directory, gallery directory, dryRun bool, config configuration, progressBar *pb.ProgressBar) {
-	// replace println:s with actual functionality, add concurrence
+func createMedia(depth int, source directory, gallery directory, dryRun bool, config configuration, progressBar *pb.ProgressBar) {
+	// TODO concurrency
 	for _, file := range source.files {
 		if !file.exists {
+			// TODO functionality
 			fmt.Println("converting:", file.name, file.relPath, file.absPath)
 		}
 	}
+}
 
-	createHTML(depth, source.subdirectories, source.files)
+// Clean gallery directory of any directories or files which don't exist in source
+func cleanDirectory(gallery directory, dryRun bool) {
+	for _, file := range gallery.files {
+		if !file.exists {
+			// TODO
+		}
+	}
+
+	for _, dir := range gallery.subdirectories {
+		if !dir.exists {
+			// TODO
+			// What about reserved directories for thumbnails, pictures and originals?
+		}
+	}
+}
+
+func createGallery(depth int, source directory, gallery directory, dryRun bool, cleanUp bool, config configuration, progressBar *pb.ProgressBar) {
+
+	if hasDirectoryChanged(source, gallery, cleanUp) {
+		createMedia(depth, source, gallery, dryRun, config, progressBar)
+		createHTML(depth, source, dryRun)
+		if cleanUp {
+			cleanDirectory(gallery, dryRun)
+		}
+	}
 
 	for _, subdir := range source.subdirectories {
 		fmt.Println("recursing to:", subdir.name, subdir.relPath, subdir.absPath)
-		createGallery(depth+1, subdir, gallery, dryRun, config, progressBar)
+		createGallery(depth+1, subdir, gallery, dryRun, cleanUp, config, progressBar)
 	}
 }
 
@@ -521,6 +594,7 @@ func main() {
 		Gallery string `arg:"positional,required" help:"Destination directory to create gallery in"`
 		Verbose bool   `arg:"-v,--verbose" help:"verbosity level"`
 		DryRun  bool   `arg:"--dry-run" help:"dry run; don't change anything, just print what would be done"`
+		CleanUp bool   `arg:"-c,--cleanup" help:"cleanup, delete files and directories in gallery which don't exist in source"`
 	}
 
 	// Parse command-line arguments
@@ -570,7 +644,7 @@ func main() {
 		}
 
 		copyRootAssets(gallery, args.DryRun, config.files.fileMode)
-		createGallery(0, source, gallery, args.DryRun, config, progressBar)
+		createGallery(0, source, gallery, args.DryRun, args.CleanUp, config, progressBar)
 
 		if !args.DryRun {
 			progressBar.Finish()

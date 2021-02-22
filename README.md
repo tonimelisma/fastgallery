@@ -6,6 +6,7 @@
 - Deals with any file formats (including HEIC and HEVC)
 - Only updates changed files, runs incrementally
 - If aborted, can continue from where it stopped and clean-up unfinished files
+- Will delete removed source files from gallery
 - Uses relative paths (safe for using in subdirectory or S3)
 - Minimal bloat (vanilla JS frontend, minimal CSS)
 
