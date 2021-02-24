@@ -608,16 +608,24 @@ func createMedia(source directory, gallerySubdirectory string, dryRun bool, conf
 	for _, file := range source.files {
 		if !file.exists {
 
-			sourceFilename := filepath.Join(source.absPath, file.name)
-			thumbnailFilename := filepath.Join(thumbnailGalleryDirectory, file.name)
-			fullsizeFilename := filepath.Join(fullsizeGalleryDirectory, file.name)
-			originalFilename := filepath.Join(originalGalleryDirectory, file.name)
-			if dryRun {
-				log.Println("converting:", sourceFilename, thumbnailFilename, fullsizeFilename, originalFilename)
+			sourceFilepath := filepath.Join(source.absPath, file.name)
+			var destinationFilename string
+			if isImageFile(file.name) {
+				destinationFilename = stripExtension(file.name) + config.files.imageExtension
+			} else if isVideoFile(file.name) {
+				destinationFilename = stripExtension(file.name) + config.files.videoExtension
 			} else {
-				createThumbnail(sourceFilename, thumbnailFilename, config)
-				createFullsize(sourceFilename, fullsizeFilename, config)
-				createOriginal(sourceFilename, originalFilename, config)
+				log.Fatal("could not infer whether file is image or video:", sourceFilepath)
+			}
+			thumbnailFilename := filepath.Join(thumbnailGalleryDirectory, destinationFilename)
+			fullsizeFilename := filepath.Join(fullsizeGalleryDirectory, destinationFilename)
+			originalFilename := filepath.Join(originalGalleryDirectory, destinationFilename)
+			if dryRun {
+				log.Println("converting:", sourceFilepath, thumbnailFilename, fullsizeFilename, originalFilename)
+			} else {
+				createThumbnail(sourceFilepath, thumbnailFilename, config)
+				createFullsize(sourceFilepath, fullsizeFilename, config)
+				createOriginal(sourceFilepath, originalFilename, config)
 				progressBar.Increment()
 			}
 		}
