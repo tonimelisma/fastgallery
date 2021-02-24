@@ -2,8 +2,8 @@ package main
 
 import (
 	"embed"
-	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -12,7 +12,6 @@ import (
 
 	"github.com/cheggaaa/pb/v3"
 	"github.com/davidbyttow/govips/v2/vips"
-	"github.com/kr/pretty"
 
 	"github.com/alexflint/go-arg"
 )
@@ -118,13 +117,13 @@ func isDirectory(directory string) bool {
 	if filestat.Mode()&os.ModeSymlink != 0 {
 		realDirectory, err := filepath.EvalSymlinks(directory)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
+			log.Printf("error: %s\n", err.Error())
 			return false
 		}
 
 		realFilestat, err := os.Stat(realDirectory)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
+			log.Printf("error: %s\n", err.Error())
 			return false
 		}
 
@@ -143,19 +142,16 @@ func validateSourceAndGallery(source string, gallery string) (string, string) {
 
 	source, err = filepath.Abs(source)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
-		exit(1)
+		log.Fatal("error:", err.Error())
 	}
 
 	if !isDirectory(source) {
-		fmt.Fprintf(os.Stderr, "Source directory doesn't exist: %s\n", source)
-		exit(1)
+		log.Fatal("Source directory doesn't exist:", source)
 	}
 
 	gallery, err = filepath.Abs(gallery)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
-		exit(1)
+		log.Fatal("error:", err.Error())
 	}
 
 	if !isDirectory(gallery) {
@@ -163,13 +159,11 @@ func validateSourceAndGallery(source string, gallery string) (string, string) {
 		// and we're supposed to create gallery there during runtime
 		galleryParent, err := filepath.Abs(gallery + "/../")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
-			exit(1)
+			log.Fatal("error:", err.Error())
 		}
 
 		if !isDirectory(galleryParent) {
-			fmt.Fprintf(os.Stderr, "Neither gallery directory or it's parent directory exist: %s\n", gallery)
-			exit(1)
+			log.Fatal("Neither gallery directory or it's parent directory exist:", gallery)
 		}
 	}
 
@@ -442,12 +436,11 @@ func countChanges(source directory) (outputChanges int) {
 func createDirectory(destination string, dryRun bool, dirMode os.FileMode) {
 	if _, err := os.Stat(destination); os.IsNotExist(err) {
 		if dryRun {
-			fmt.Println("Would create directory:", destination)
+			log.Println("Would create directory:", destination)
 		} else {
 			err := os.Mkdir(destination, dirMode)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "couldn't create directory %s: %s\n", destination, err.Error())
-				exit(1)
+				log.Fatal("couldn't create directory", destination, err.Error())
 			}
 		}
 	}
@@ -462,34 +455,30 @@ func copyFile(sourceDir string, destDir string, filename string, dryRun bool) {
 	sourceFilename := filepath.Join(sourceDir, filename)
 	destFilename := filepath.Join(destDir, filename)
 
-	if !dryRun {
+	if dryRun {
+		log.Println("would copy", sourceFilename, "to", destFilename)
+	} else {
 		_, err := os.Stat(sourceFilename)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "couldn't copy source file %s: %s\n", sourceFilename, err.Error())
-			exit(1)
+			log.Fatal("couldn't copy source file:", sourceFilename, err.Error())
 		}
 
 		sourceHandle, err := os.Open(sourceFilename)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "couldn't open source file for copy %s: %s\n", sourceFilename, err.Error())
-			exit(1)
+			log.Fatal("couldn't open source file for copy:", sourceFilename, err.Error())
 		}
 		defer sourceHandle.Close()
 
 		destHandle, err := os.Create(destFilename)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "couldn't create dest file %s: %s\n", destFilename, err.Error())
-			exit(1)
+			log.Fatal("couldn't create dest file:", destFilename, err.Error())
 		}
 		defer destHandle.Close()
 
 		_, err = io.Copy(destHandle, sourceHandle)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "couldn't copy file %s -> %s: %s\n", sourceFilename, destFilename, err.Error())
-			exit(1)
+			log.Fatal("couldn't copy file:", sourceFilename, destFilename, err.Error())
 		}
-	} else {
-		fmt.Println("would copy", sourceFilename, "to", destFilename)
 	}
 }
 
@@ -506,7 +495,9 @@ func copyRootAssets(gallery directory, dryRun bool, fileMode os.FileMode) {
 			switch filepath.Ext(strings.ToLower(entry.Name())) {
 			// Copy all javascript and CSS files
 			case ".js", ".css":
-				if !dryRun {
+				if dryRun {
+					log.Println("Would copy JS/CSS file", entry.Name(), "to", gallery.absPath)
+				} else {
 					filebuffer, err := assets.ReadFile("assets/" + entry.Name())
 					if err != nil {
 						log.Fatal("couldn't open embedded asset:", entry.Name(), ":", err.Error())
@@ -515,15 +506,15 @@ func copyRootAssets(gallery directory, dryRun bool, fileMode os.FileMode) {
 					if err != nil {
 						log.Fatal("couldn't write embedded asset:", gallery.absPath+"/"+entry.Name(), ":", err.Error())
 					}
-				} else {
-					fmt.Println("Would copy JS/CSS file", entry.Name(), "to", gallery.absPath)
 				}
 			}
 
 			switch entry.Name() {
 			// Copy back.png and folder.png
 			case "back.png", "folder.png":
-				if !dryRun {
+				if dryRun {
+					log.Println("Would copy icon", entry.Name(), "to", gallery.absPath)
+				} else {
 					filebuffer, err := assets.ReadFile("assets/" + entry.Name())
 					if err != nil {
 						log.Fatal("couldn't open embedded asset:", entry.Name(), ":", err.Error())
@@ -532,8 +523,6 @@ func copyRootAssets(gallery directory, dryRun bool, fileMode os.FileMode) {
 					if err != nil {
 						log.Fatal("couldn't write embedded asset:", gallery.absPath+"/"+entry.Name(), ":", err.Error())
 					}
-				} else {
-					fmt.Println("Would copy icon", entry.Name(), "to", gallery.absPath)
 				}
 			}
 		}
@@ -545,12 +534,92 @@ func createHTML(depth int, source directory, dryRun bool) {
 	// TODO dry-run
 }
 
-func createMedia(depth int, source directory, gallery directory, dryRun bool, config configuration, progressBar *pb.ProgressBar) {
+// getGalleryDirectoryNames parses the names for subdirectories for thumbnail, full size
+// and original pictures in the gallery directory
+func getGalleryDirectoryNames(galleryDirectory string, config configuration) (thumbnailGalleryDirectory string, fullsizeGalleryDirectory string, originalGalleryDirectory string) {
+	thumbnailGalleryDirectory = filepath.Join(galleryDirectory, config.files.thumbnailDir)
+	fullsizeGalleryDirectory = filepath.Join(galleryDirectory, config.files.fullsizeDir)
+	originalGalleryDirectory = filepath.Join(galleryDirectory, config.files.originalDir)
+	return
+}
+
+func createThumbnail(source string, destination string, config configuration) {
+	// TODO functionality
+}
+
+func createFullsize(source string, destination string, config configuration) {
+	// TODO functionality
+	if config.files.imageExtension == ".jpg" {
+		image, err := vips.NewImageFromFile(source)
+		if err != nil {
+			log.Println("couldn't open image:", source, err.Error())
+			return
+		}
+
+		err = image.AutoRotate()
+		if err != nil {
+			log.Println("couldn't autorotate image:", source, err.Error())
+			return
+		}
+
+		scale := float64(config.media.fullsizeMaxWidth) / float64(image.Width())
+		if (scale * float64(image.Height())) > float64(config.media.fullsizeMaxHeight) {
+			scale = float64(config.media.fullsizeMaxHeight) / float64(image.Height())
+		}
+
+		err = image.Resize(scale, vips.KernelAuto)
+		if err != nil {
+			log.Println("couldn't resize image:", source, err.Error())
+			return
+		}
+
+		ep := vips.NewDefaultJPEGExportParams()
+		imageBytes, _, err := image.Export(ep)
+		if err != nil {
+			log.Println("couldn't export image:", source, destination, err.Error())
+			return
+		}
+
+		err = ioutil.WriteFile(destination, imageBytes, config.files.fileMode)
+		if err != nil {
+			log.Println("couldn't write image:", destination, err.Error())
+			return
+		}
+	} else {
+		log.Fatal("Can't figure out what format to convert full size image to:", destination)
+	}
+}
+
+func createOriginal(source string, destination string, config configuration) {
+	// TODO functionality
+}
+
+// createMedia takes the source directory, and creates a thumbnail, full-size
+// version and original of each non-existing file to the respective gallery directory.
+func createMedia(source directory, gallerySubdirectory string, dryRun bool, config configuration, progressBar *pb.ProgressBar) {
+	thumbnailGalleryDirectory, fullsizeGalleryDirectory, originalGalleryDirectory := getGalleryDirectoryNames(gallerySubdirectory, config)
+
+	// Create subdirectories in gallery directory for thumbnails, full-size and original pics
+	createDirectory(thumbnailGalleryDirectory, dryRun, config.files.directoryMode)
+	createDirectory(fullsizeGalleryDirectory, dryRun, config.files.directoryMode)
+	createDirectory(originalGalleryDirectory, dryRun, config.files.directoryMode)
+
 	// TODO concurrency
 	for _, file := range source.files {
 		if !file.exists {
-			// TODO functionality
-			fmt.Println("converting:", file.name, file.relPath, file.absPath)
+
+			sourceFilename := filepath.Join(source.absPath, file.name)
+			thumbnailFilename := filepath.Join(thumbnailGalleryDirectory, file.name)
+			fullsizeFilename := filepath.Join(fullsizeGalleryDirectory, file.name)
+			originalFilename := filepath.Join(originalGalleryDirectory, file.name)
+			if dryRun {
+				log.Println("converting:", sourceFilename, thumbnailFilename, fullsizeFilename, originalFilename)
+			} else {
+				createThumbnail(sourceFilename, thumbnailFilename, config)
+				createFullsize(sourceFilename, fullsizeFilename, config)
+				createOriginal(sourceFilename, originalFilename, config)
+				progressBar.Increment()
+			}
 		}
 	}
 }
@@ -560,6 +629,9 @@ func cleanDirectory(gallery directory, dryRun bool) {
 	for _, file := range gallery.files {
 		if !file.exists {
 			// TODO
+			if dryRun {
+				log.Println("would clean up file:", gallery.absPath, file.name)
+			}
 		}
 	}
 
@@ -567,14 +639,19 @@ func cleanDirectory(gallery directory, dryRun bool) {
 		if !dir.exists {
 			// TODO
 			// What about reserved directories for thumbnails, pictures and originals?
+			// Implement logic to mark non-existent gallery directories
+			if dryRun {
+				log.Println("would clean up dir:", gallery.absPath, dir.name)
+			}
 		}
 	}
 }
 
 func createGallery(depth int, source directory, gallery directory, dryRun bool, cleanUp bool, config configuration, progressBar *pb.ProgressBar) {
+	galleryDirectory := filepath.Join(gallery.absPath, source.relPath)
 
 	if hasDirectoryChanged(source, gallery, cleanUp) {
-		createMedia(depth, source, gallery, dryRun, config, progressBar)
+		createMedia(source, galleryDirectory, dryRun, config, progressBar)
 		createHTML(depth, source, dryRun)
 		if cleanUp {
 			cleanDirectory(gallery, dryRun)
@@ -582,7 +659,13 @@ func createGallery(depth int, source directory, gallery directory, dryRun bool, 
 	}
 
 	for _, subdir := range source.subdirectories {
-		fmt.Println("recursing to:", subdir.name, subdir.relPath, subdir.absPath)
+		log.Println("recursing to:", subdir.name, subdir.relPath, subdir.absPath)
+
+		// Create respective source subdirectory also in gallery subdirectory
+		gallerySubdir := filepath.Join(gallery.absPath, subdir.relPath)
+		createDirectory(gallerySubdir, dryRun, config.files.directoryMode)
+
+		// Recurse
 		createGallery(depth+1, subdir, gallery, dryRun, cleanUp, config, progressBar)
 	}
 }
@@ -606,11 +689,11 @@ func main() {
 	// Initialize configuration (assets, directories, file types)
 	config := initializeConfig()
 
-	fmt.Println("Creating gallery...")
-	fmt.Println("Source:", args.Source)
-	fmt.Println("Gallery:", args.Gallery)
-	fmt.Println()
-	fmt.Println("Finding all media files...")
+	log.Println("Creating gallery...")
+	log.Println("Source:", args.Source)
+	log.Println("Gallery:", args.Gallery)
+	log.Println()
+	log.Println("Finding all media files...")
 
 	// Creating a directory struct of both source as well as gallery directories
 	source := createDirectoryTree(args.Source, "")
@@ -622,7 +705,7 @@ func main() {
 	// Count number of source files which don't exist in gallery
 	changes := countChanges(source)
 	if changes > 0 {
-		fmt.Println(changes, "files to update")
+		log.Println(changes, "files to update")
 		if !exists(gallery.absPath) {
 			createDirectory(gallery.absPath, args.DryRun, config.files.directoryMode)
 		}
@@ -650,14 +733,14 @@ func main() {
 			progressBar.Finish()
 		}
 
-		fmt.Println("Gallery updated!")
+		log.Println("Gallery updated!")
 	} else {
-		fmt.Println("Gallery already up to date!")
+		log.Println("Gallery already up to date!")
 	}
 
-	fmt.Println("source:")
-	pretty.Print(source)
+	// log.Println("source:")
+	// pretty.Print(source)
 
-	fmt.Println("gallery:")
-	pretty.Print(gallery)
+	// log.Println("gallery:")
+	// pretty.Print(gallery)
 }
