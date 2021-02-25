@@ -2,16 +2,19 @@ package main
 
 import (
 	"embed"
+	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/cheggaaa/pb/v3"
 	"github.com/davidbyttow/govips/v2/vips"
+	"github.com/kr/pretty"
 
 	"github.com/alexflint/go-arg"
 )
@@ -142,16 +145,19 @@ func validateSourceAndGallery(source string, gallery string) (string, string) {
 
 	source, err = filepath.Abs(source)
 	if err != nil {
-		log.Fatal("error:", err.Error())
+		log.Println("error:", err.Error())
+		exit(1)
 	}
 
 	if !isDirectory(source) {
-		log.Fatal("Source directory doesn't exist:", source)
+		log.Println("Source directory doesn't exist:", source)
+		exit(1)
 	}
 
 	gallery, err = filepath.Abs(gallery)
 	if err != nil {
-		log.Fatal("error:", err.Error())
+		log.Println("error:", err.Error())
+		exit(1)
 	}
 
 	if !isDirectory(gallery) {
@@ -159,11 +165,13 @@ func validateSourceAndGallery(source string, gallery string) (string, string) {
 		// and we're supposed to create gallery there during runtime
 		galleryParent, err := filepath.Abs(gallery + "/../")
 		if err != nil {
-			log.Fatal("error:", err.Error())
+			log.Println("error:", err.Error())
+			exit(1)
 		}
 
 		if !isDirectory(galleryParent) {
-			log.Fatal("Neither gallery directory or it's parent directory exist:", gallery)
+			log.Println("Neither gallery directory or it's parent directory exist:", gallery)
+			exit(1)
 		}
 	}
 
@@ -260,7 +268,8 @@ func createDirectoryTree(absoluteDirectory string, parentDirectory string) (tree
 	// List directory contents
 	list, err := os.ReadDir(absoluteDirectory)
 	if err != nil {
-		log.Fatal("Couldn't list directory contents:", absoluteDirectory)
+		log.Println("Couldn't list directory contents:", absoluteDirectory)
+		exit(1)
 	}
 
 	// If it's a directory and it has media files somewhere, add it to directories
@@ -276,7 +285,8 @@ func createDirectoryTree(absoluteDirectory string, parentDirectory string) (tree
 		} else if isMediaFile(entryAbsPath) {
 			entryFileInfo, err := entry.Info()
 			if err != nil {
-				log.Fatal("Couldn't stat file information for media file:", entry.Name())
+				log.Println("Couldn't stat file information for media file:", entry.Name())
+				exit(1)
 			}
 			entryFile := file{
 				name:    entry.Name(),
@@ -440,14 +450,26 @@ func createDirectory(destination string, dryRun bool, dirMode os.FileMode) {
 		} else {
 			err := os.Mkdir(destination, dirMode)
 			if err != nil {
-				log.Fatal("couldn't create directory", destination, err.Error())
+				log.Println("couldn't create directory", destination, err.Error())
+				exit(1)
 			}
 		}
 	}
 }
 
-func symlinkFile(sourceDir string, destDir string, filename string, dryRun bool) {
-	// TODO functionality
+func symlinkFile(source string, destination string) {
+	if _, err := os.Stat(destination); err == nil {
+		err := os.Remove(destination)
+		if err != nil {
+			log.Println("couldn't remove symlink:", source, destination)
+			return
+		}
+	}
+	err := os.Symlink(source, destination)
+	if err != nil {
+		log.Println("couldn't symlink:", source, destination)
+		return
+	}
 }
 
 // TODO deprecate copyFile() function or use for originals
@@ -460,24 +482,28 @@ func copyFile(sourceDir string, destDir string, filename string, dryRun bool) {
 	} else {
 		_, err := os.Stat(sourceFilename)
 		if err != nil {
-			log.Fatal("couldn't copy source file:", sourceFilename, err.Error())
+			log.Println("couldn't copy source file:", sourceFilename, err.Error())
+			exit(1)
 		}
 
 		sourceHandle, err := os.Open(sourceFilename)
 		if err != nil {
-			log.Fatal("couldn't open source file for copy:", sourceFilename, err.Error())
+			log.Println("couldn't open source file for copy:", sourceFilename, err.Error())
+			exit(1)
 		}
 		defer sourceHandle.Close()
 
 		destHandle, err := os.Create(destFilename)
 		if err != nil {
-			log.Fatal("couldn't create dest file:", destFilename, err.Error())
+			log.Println("couldn't create dest file:", destFilename, err.Error())
+			exit(1)
 		}
 		defer destHandle.Close()
 
 		_, err = io.Copy(destHandle, sourceHandle)
 		if err != nil {
-			log.Fatal("couldn't copy file:", sourceFilename, destFilename, err.Error())
+			log.Println("couldn't copy file:", sourceFilename, destFilename, err.Error())
+			exit(1)
 		}
 	}
 }
@@ -486,7 +512,8 @@ func copyFile(sourceDir string, destDir string, filename string, dryRun bool) {
 func copyRootAssets(gallery directory, dryRun bool, fileMode os.FileMode) {
 	assetDirectoryListing, err := assets.ReadDir("assets")
 	if err != nil {
-		log.Fatal("couldn't open embedded assets:", err.Error())
+		log.Println("couldn't open embedded assets:", err.Error())
+		exit(1)
 	}
 
 	// Iterate through all the embedded assets
@@ -500,11 +527,13 @@ func copyRootAssets(gallery directory, dryRun bool, fileMode os.FileMode) {
 				} else {
 					filebuffer, err := assets.ReadFile("assets/" + entry.Name())
 					if err != nil {
-						log.Fatal("couldn't open embedded asset:", entry.Name(), ":", err.Error())
+						log.Println("couldn't open embedded asset:", entry.Name(), ":", err.Error())
+						exit(1)
 					}
 					err = os.WriteFile(gallery.absPath+"/"+entry.Name(), filebuffer, fileMode)
 					if err != nil {
-						log.Fatal("couldn't write embedded asset:", gallery.absPath+"/"+entry.Name(), ":", err.Error())
+						log.Println("couldn't write embedded asset:", gallery.absPath+"/"+entry.Name(), ":", err.Error())
+						exit(1)
 					}
 				}
 			}
@@ -517,11 +546,13 @@ func copyRootAssets(gallery directory, dryRun bool, fileMode os.FileMode) {
 				} else {
 					filebuffer, err := assets.ReadFile("assets/" + entry.Name())
 					if err != nil {
-						log.Fatal("couldn't open embedded asset:", entry.Name(), ":", err.Error())
+						log.Println("couldn't open embedded asset:", entry.Name(), ":", err.Error())
+						exit(1)
 					}
 					err = os.WriteFile(gallery.absPath+"/"+entry.Name(), filebuffer, fileMode)
 					if err != nil {
-						log.Fatal("couldn't write embedded asset:", gallery.absPath+"/"+entry.Name(), ":", err.Error())
+						log.Println("couldn't write embedded asset:", gallery.absPath+"/"+entry.Name(), ":", err.Error())
+						exit(1)
 					}
 				}
 			}
@@ -543,25 +574,22 @@ func getGalleryDirectoryNames(galleryDirectory string, config configuration) (th
 	return
 }
 
-func createThumbnail(source string, destination string, config configuration) {
-	// TODO functionality
-}
-
-func createFullsize(source string, destination string, config configuration) {
-	// TODO functionality
+func transformImage(source string, fullsizeDestination string, thumbnailDestination string, config configuration) {
 	if config.files.imageExtension == ".jpg" {
+		// First create full-size image
 		image, err := vips.NewImageFromFile(source)
 		if err != nil {
-			log.Println("couldn't open image:", source, err.Error())
+			log.Println("couldn't open full-size image:", source, err.Error())
 			return
 		}
 
 		err = image.AutoRotate()
 		if err != nil {
-			log.Println("couldn't autorotate image:", source, err.Error())
+			log.Println("couldn't autorotate full-size image:", source, err.Error())
 			return
 		}
 
+		// TODO document below
 		scale := float64(config.media.fullsizeMaxWidth) / float64(image.Width())
 		if (scale * float64(image.Height())) > float64(config.media.fullsizeMaxHeight) {
 			scale = float64(config.media.fullsizeMaxHeight) / float64(image.Height())
@@ -569,29 +597,110 @@ func createFullsize(source string, destination string, config configuration) {
 
 		err = image.Resize(scale, vips.KernelAuto)
 		if err != nil {
-			log.Println("couldn't resize image:", source, err.Error())
+			log.Println("couldn't resize full-size image:", source, err.Error())
 			return
 		}
 
 		ep := vips.NewDefaultJPEGExportParams()
-		imageBytes, _, err := image.Export(ep)
+		fullsizeBuffer, _, err := image.Export(ep)
 		if err != nil {
-			log.Println("couldn't export image:", source, destination, err.Error())
+			log.Println("couldn't export full-size image:", source, err.Error())
 			return
 		}
 
-		err = ioutil.WriteFile(destination, imageBytes, config.files.fileMode)
+		err = os.WriteFile(fullsizeDestination, fullsizeBuffer, config.files.fileMode)
 		if err != nil {
-			log.Println("couldn't write image:", destination, err.Error())
+			log.Println("couldn't write full-size image:", fullsizeDestination, err.Error())
+			return
+		}
+
+		// After full-size image, create thumbnail
+		err = image.Thumbnail(config.media.thumbnailWidth, config.media.thumbnailHeight, vips.InterestingAttention)
+		if err != nil {
+			log.Println("couldn't crop thumbnail:", err.Error())
+			return
+		}
+
+		thumbnailBuffer, _, err := image.Export(ep)
+		if err != nil {
+			log.Println("couldn't export thumbnail image:", source, err.Error())
+			return
+		}
+
+		err = os.WriteFile(thumbnailDestination, thumbnailBuffer, config.files.fileMode)
+		if err != nil {
+			log.Println("couldn't write thumbnail image:", thumbnailDestination, err.Error())
 			return
 		}
 	} else {
-		log.Fatal("Can't figure out what format to convert full size image to:", destination)
+		log.Println("Can't figure out what format to convert full size image to:", source)
+		exit(1)
 	}
 }
 
-func createOriginal(source string, destination string, config configuration) {
-	// TODO functionality
+func transformVideo(source string, fullsizeDestination string, thumbnailDestination string, config configuration) {
+	// Resize full-size video
+	ffmpegCommand := exec.Command("ffmpeg", "-y", "-i", source, "-pix_fmt", "yuv420p", "-vcodec", "libx264", "-acodec", "aac", "-movflags", "faststart", "-r", "24", "-vf", "scale='min("+strconv.Itoa(config.media.videoMaxSize)+",iw)':'min("+strconv.Itoa(config.media.videoMaxSize)+",ih)':force_original_aspect_ratio=decrease", "-crf", "28", "-loglevel", "fatal", fullsizeDestination)
+	// TODO capture stdout/err to bytes buffer instead
+	ffmpegCommand.Stdout = os.Stdout
+	ffmpegCommand.Stderr = os.Stderr
+
+	err := ffmpegCommand.Run()
+	if err != nil {
+		log.Println("Could not create full-size video transcode:", source)
+		return
+	}
+
+	// Create thumbnail image of video
+	ffmpegCommand2 := exec.Command("ffmpeg", "-y", "-i", source, "-ss", "00:00:00", "-vframes", "1", "-vf", fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d", config.media.thumbnailWidth, config.media.thumbnailHeight, config.media.thumbnailWidth, config.media.thumbnailHeight), "-loglevel", "fatal", thumbnailDestination)
+	// TODO capture stdout/err to bytes buffer instead
+	ffmpegCommand2.Stdout = os.Stdout
+	ffmpegCommand2.Stderr = os.Stderr
+
+	err = ffmpegCommand2.Run()
+	if err != nil {
+		log.Println("Could not create thumbnail of video:", source)
+		return
+	}
+
+	// Take thumbnail and overlay triangle image on top of it
+	image, err := vips.NewImageFromFile(thumbnailDestination)
+	if err != nil {
+		log.Println("Could not open video thumbnail:", thumbnailDestination)
+		return
+	}
+
+	playbuttonOverlayBuffer, err := assets.ReadFile("assets/playbutton.png")
+	playbuttonOverlayImage, err := vips.NewImageFromBuffer(playbuttonOverlayBuffer)
+	if err != nil {
+		log.Println("Could not open play button overlay asset")
+		return
+	}
+
+	// Overlay play button in the middle of thumbnail picture
+	err = image.Composite(playbuttonOverlayImage, vips.BlendModeOver, (config.media.thumbnailWidth/2)-(playbuttonOverlayImage.Width()/2), (config.media.thumbnailHeight/2)-(playbuttonOverlayImage.Height()/2))
+	if err != nil {
+		log.Println("Could not composite play button overlay on top of:", thumbnailDestination)
+		return
+	}
+
+	ep := vips.NewDefaultJPEGExportParams()
+	imageBytes, _, err := image.Export(ep)
+	if err != nil {
+		log.Println("Could not export video thumnail:", thumbnailDestination)
+		return
+	}
+
+	err = os.WriteFile(thumbnailDestination, imageBytes, config.files.fileMode)
+	if err != nil {
+		log.Println("Could not write video thumnail:", thumbnailDestination)
+		return
+	}
+}
+
+func createOriginal(source string, destination string) {
+	// TODO add option to copy
+	symlinkFile(source, destination)
 }
 
 // createMedia takes the source directory, and creates a thumbnail, full-size
@@ -607,25 +716,32 @@ func createMedia(source directory, gallerySubdirectory string, dryRun bool, conf
 	// TODO concurrency
 	for _, file := range source.files {
 		if !file.exists {
-
 			sourceFilepath := filepath.Join(source.absPath, file.name)
-			var destinationFilename string
+			thumbnailFilename := stripExtension(file.name) + config.files.imageExtension
+			var fullsizeFilename string
 			if isImageFile(file.name) {
-				destinationFilename = stripExtension(file.name) + config.files.imageExtension
+				fullsizeFilename = stripExtension(file.name) + config.files.imageExtension
 			} else if isVideoFile(file.name) {
-				destinationFilename = stripExtension(file.name) + config.files.videoExtension
+				fullsizeFilename = stripExtension(file.name) + config.files.videoExtension
 			} else {
-				log.Fatal("could not infer whether file is image or video:", sourceFilepath)
+				log.Println("could not infer whether file is image or video:", sourceFilepath)
+				exit(1)
 			}
-			thumbnailFilename := filepath.Join(thumbnailGalleryDirectory, destinationFilename)
-			fullsizeFilename := filepath.Join(fullsizeGalleryDirectory, destinationFilename)
-			originalFilename := filepath.Join(originalGalleryDirectory, destinationFilename)
+			thumbnailFilepath := filepath.Join(thumbnailGalleryDirectory, thumbnailFilename)
+			fullsizeFilepath := filepath.Join(fullsizeGalleryDirectory, fullsizeFilename)
+			originalFilepath := filepath.Join(originalGalleryDirectory, file.name)
 			if dryRun {
-				log.Println("converting:", sourceFilepath, thumbnailFilename, fullsizeFilename, originalFilename)
+				log.Println("Would convert:", sourceFilepath, thumbnailFilepath, fullsizeFilepath, originalFilepath)
 			} else {
-				createThumbnail(sourceFilepath, thumbnailFilename, config)
-				createFullsize(sourceFilepath, fullsizeFilename, config)
-				createOriginal(sourceFilepath, originalFilename, config)
+				if isImageFile(file.name) {
+					transformImage(sourceFilepath, fullsizeFilepath, thumbnailFilepath, config)
+				} else if isVideoFile(file.name) {
+					transformVideo(sourceFilepath, fullsizeFilepath, thumbnailFilepath, config)
+				} else {
+					log.Println("could not infer whether file is image or video(2):", sourceFilepath)
+					exit(1)
+				}
+				createOriginal(sourceFilepath, originalFilepath)
 				progressBar.Increment()
 			}
 		}
@@ -667,8 +783,6 @@ func createGallery(depth int, source directory, gallery directory, dryRun bool, 
 	}
 
 	for _, subdir := range source.subdirectories {
-		log.Println("recursing to:", subdir.name, subdir.relPath, subdir.absPath)
-
 		// Create respective source subdirectory also in gallery subdirectory
 		gallerySubdir := filepath.Join(gallery.absPath, subdir.relPath)
 		createDirectory(gallerySubdir, dryRun, config.files.directoryMode)
@@ -746,9 +860,9 @@ func main() {
 		log.Println("Gallery already up to date!")
 	}
 
-	// log.Println("source:")
-	// pretty.Print(source)
+	log.Println("source:")
+	pretty.Print(source)
 
-	// log.Println("gallery:")
-	// pretty.Print(gallery)
+	log.Println("gallery:")
+	pretty.Print(gallery)
 }
