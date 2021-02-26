@@ -369,49 +369,49 @@ func compareDirectoryTrees(source *directory, gallery *directory, config configu
 	// Iterate over each file in source directory to see whether it exists in gallery
 	for i, sourceFile := range source.files {
 		sourceFileBasename := stripExtension(sourceFile.name)
-		fmt.Println("checking:", sourceFile.absPath, sourceFileBasename)
 		var thumbnailFile, fullsizeFile, originalFile *file
-		fmt.Println(sourceFile, thumbnailFile, fullsizeFile, originalFile)
+		fmt.Println("[1]   --- ", sourceFile, thumbnailFile, fullsizeFile, originalFile)
 
 		// Go through all subdirectories, and check the ones that match
 		// the thumbnail, full-size or original subdirectories
-		for _, subDir := range gallery.subdirectories {
+		for h, subDir := range gallery.subdirectories {
 			if subDir.name == config.files.thumbnailDir {
-				for _, outputFile := range subDir.files {
+				for i, outputFile := range gallery.subdirectories[h].files {
 					outputFileBasename := stripExtension(outputFile.name)
 					if sourceFileBasename == outputFileBasename {
-						fmt.Println("match:", sourceFileBasename, outputFileBasename, thumbnailFile)
-						thumbnailFile = &outputFile
+						thumbnailFile = &gallery.subdirectories[h].files[i]
 						thumbnailFile.exists = true
-						fmt.Println("match2:", thumbnailFile)
+						fmt.Println("[2]   --- ", sourceFile, thumbnailFile, fullsizeFile, originalFile)
 					}
 				}
 			} else if subDir.name == config.files.fullsizeDir {
-				for _, outputFile := range subDir.files {
+				for j, outputFile := range gallery.subdirectories[h].files {
 					outputFileBasename := stripExtension(outputFile.name)
 					if sourceFileBasename == outputFileBasename {
-						fullsizeFile = &outputFile
+						fullsizeFile = &gallery.subdirectories[h].files[j]
 						fullsizeFile.exists = true
+						fmt.Println("[3]   --- ", sourceFile, thumbnailFile, fullsizeFile, originalFile)
 					}
 				}
 			} else if subDir.name == config.files.originalDir {
-				for _, outputFile := range subDir.files {
+				for k, outputFile := range gallery.subdirectories[h].files {
 					outputFileBasename := stripExtension(outputFile.name)
 					if sourceFileBasename == outputFileBasename {
-						originalFile = &outputFile
+						originalFile = &gallery.subdirectories[h].files[k]
 						originalFile.exists = true
+						fmt.Println("[4]   --- ", sourceFile, thumbnailFile, fullsizeFile, originalFile)
 					}
 				}
 			}
 		}
 
+		fmt.Println("[5]   --- ", sourceFile, thumbnailFile, fullsizeFile, originalFile)
 		// If all of thumbnail, full-size and original files exist in gallery, and they're
 		// modified after the source file, the source file exists and is up to date.
 		// Otherwise we overwrite gallery files in case source file's been updated since the thumbnail
 		// was created.
 		if thumbnailFile != nil && fullsizeFile != nil && originalFile != nil {
-			fmt.Println("three matches", sourceFile.name)
-			fmt.Println(sourceFile, thumbnailFile, fullsizeFile, originalFile)
+			fmt.Println("[6]   --- ", sourceFile, thumbnailFile, fullsizeFile, originalFile)
 			if thumbnailFile.modTime.After(sourceFile.modTime) {
 				source.files[i].exists = true
 			} else {
