@@ -14,7 +14,6 @@ import (
 
 	"github.com/cheggaaa/pb/v3"
 	"github.com/davidbyttow/govips/v2/vips"
-	"github.com/kr/pretty"
 
 	"github.com/alexflint/go-arg"
 )
@@ -365,11 +364,14 @@ func compareDirectoryTrees(source *directory, gallery *directory, config configu
 	source.exists = true
 	gallery.exists = true
 
+	// TODO fix bug where two source files with different extensions clash
+
 	// Iterate over each file in source directory to see whether it exists in gallery
 	for i, sourceFile := range source.files {
 		sourceFileBasename := stripExtension(sourceFile.name)
-
+		fmt.Println("checking:", sourceFile.absPath, sourceFileBasename)
 		var thumbnailFile, fullsizeFile, originalFile *file
+		fmt.Println(sourceFile, thumbnailFile, fullsizeFile, originalFile)
 
 		// Go through all subdirectories, and check the ones that match
 		// the thumbnail, full-size or original subdirectories
@@ -378,13 +380,13 @@ func compareDirectoryTrees(source *directory, gallery *directory, config configu
 				for _, outputFile := range subDir.files {
 					outputFileBasename := stripExtension(outputFile.name)
 					if sourceFileBasename == outputFileBasename {
+						fmt.Println("match:", sourceFileBasename, outputFileBasename, thumbnailFile)
 						thumbnailFile = &outputFile
 						thumbnailFile.exists = true
+						fmt.Println("match2:", thumbnailFile)
 					}
 				}
-			}
-
-			if subDir.name == config.files.fullsizeDir {
+			} else if subDir.name == config.files.fullsizeDir {
 				for _, outputFile := range subDir.files {
 					outputFileBasename := stripExtension(outputFile.name)
 					if sourceFileBasename == outputFileBasename {
@@ -392,9 +394,7 @@ func compareDirectoryTrees(source *directory, gallery *directory, config configu
 						fullsizeFile.exists = true
 					}
 				}
-			}
-
-			if subDir.name == config.files.originalDir {
+			} else if subDir.name == config.files.originalDir {
 				for _, outputFile := range subDir.files {
 					outputFileBasename := stripExtension(outputFile.name)
 					if sourceFileBasename == outputFileBasename {
@@ -410,8 +410,12 @@ func compareDirectoryTrees(source *directory, gallery *directory, config configu
 		// Otherwise we overwrite gallery files in case source file's been updated since the thumbnail
 		// was created.
 		if thumbnailFile != nil && fullsizeFile != nil && originalFile != nil {
-			if !thumbnailFile.modTime.Before(sourceFile.modTime) {
+			fmt.Println("three matches", sourceFile.name)
+			fmt.Println(sourceFile, thumbnailFile, fullsizeFile, originalFile)
+			if thumbnailFile.modTime.After(sourceFile.modTime) {
 				source.files[i].exists = true
+			} else {
+				fmt.Println("source file (1) modified after thumbnail (2):", sourceFile.absPath, sourceFile.modTime.String(), " --- ", thumbnailFile.absPath, thumbnailFile.modTime.String())
 			}
 		}
 	}
@@ -589,12 +593,14 @@ func transformImage(source string, fullsizeDestination string, thumbnailDestinat
 			return
 		}
 
-		// TODO document below
+		// Calculate the scaling factor used to make the image smaller
 		scale := float64(config.media.fullsizeMaxWidth) / float64(image.Width())
 		if (scale * float64(image.Height())) > float64(config.media.fullsizeMaxHeight) {
+			// If the image is tall vertically, use height instead of width to recalculate scaling factor
 			scale = float64(config.media.fullsizeMaxHeight) / float64(image.Height())
 		}
 
+		// TODO don't enlarge the file by accident
 		err = image.Resize(scale, vips.KernelAuto)
 		if err != nil {
 			log.Println("couldn't resize full-size image:", source, err.Error())
@@ -632,6 +638,8 @@ func transformImage(source string, fullsizeDestination string, thumbnailDestinat
 			log.Println("couldn't write thumbnail image:", thumbnailDestination, err.Error())
 			return
 		}
+
+		fmt.Println("wrote thumbnailfile:", thumbnailDestination)
 	} else {
 		log.Println("Can't figure out what format to convert full size image to:", source)
 		exit(1)
@@ -717,6 +725,7 @@ func createMedia(source directory, gallerySubdirectory string, dryRun bool, conf
 	for _, file := range source.files {
 		if !file.exists {
 			sourceFilepath := filepath.Join(source.absPath, file.name)
+			fmt.Println("updating:", sourceFilepath)
 			thumbnailFilename := stripExtension(file.name) + config.files.imageExtension
 			var fullsizeFilename string
 			if isImageFile(file.name) {
@@ -859,10 +868,4 @@ func main() {
 	} else {
 		log.Println("Gallery already up to date!")
 	}
-
-	log.Println("source:")
-	pretty.Print(source)
-
-	log.Println("gallery:")
-	pretty.Print(gallery)
 }
