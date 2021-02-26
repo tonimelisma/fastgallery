@@ -370,7 +370,6 @@ func compareDirectoryTrees(source *directory, gallery *directory, config configu
 	for i, sourceFile := range source.files {
 		sourceFileBasename := stripExtension(sourceFile.name)
 		var thumbnailFile, fullsizeFile, originalFile *file
-		fmt.Println("[1]   --- ", sourceFile, thumbnailFile, fullsizeFile, originalFile)
 
 		// Go through all subdirectories, and check the ones that match
 		// the thumbnail, full-size or original subdirectories
@@ -381,7 +380,6 @@ func compareDirectoryTrees(source *directory, gallery *directory, config configu
 					if sourceFileBasename == outputFileBasename {
 						thumbnailFile = &gallery.subdirectories[h].files[i]
 						thumbnailFile.exists = true
-						fmt.Println("[2]   --- ", sourceFile, thumbnailFile, fullsizeFile, originalFile)
 					}
 				}
 			} else if subDir.name == config.files.fullsizeDir {
@@ -390,7 +388,6 @@ func compareDirectoryTrees(source *directory, gallery *directory, config configu
 					if sourceFileBasename == outputFileBasename {
 						fullsizeFile = &gallery.subdirectories[h].files[j]
 						fullsizeFile.exists = true
-						fmt.Println("[3]   --- ", sourceFile, thumbnailFile, fullsizeFile, originalFile)
 					}
 				}
 			} else if subDir.name == config.files.originalDir {
@@ -399,23 +396,18 @@ func compareDirectoryTrees(source *directory, gallery *directory, config configu
 					if sourceFileBasename == outputFileBasename {
 						originalFile = &gallery.subdirectories[h].files[k]
 						originalFile.exists = true
-						fmt.Println("[4]   --- ", sourceFile, thumbnailFile, fullsizeFile, originalFile)
 					}
 				}
 			}
 		}
 
-		fmt.Println("[5]   --- ", sourceFile, thumbnailFile, fullsizeFile, originalFile)
 		// If all of thumbnail, full-size and original files exist in gallery, and they're
 		// modified after the source file, the source file exists and is up to date.
 		// Otherwise we overwrite gallery files in case source file's been updated since the thumbnail
 		// was created.
 		if thumbnailFile != nil && fullsizeFile != nil && originalFile != nil {
-			fmt.Println("[6]   --- ", sourceFile, thumbnailFile, fullsizeFile, originalFile)
 			if thumbnailFile.modTime.After(sourceFile.modTime) {
 				source.files[i].exists = true
-			} else {
-				fmt.Println("source file (1) modified after thumbnail (2):", sourceFile.absPath, sourceFile.modTime.String(), " --- ", thumbnailFile.absPath, thumbnailFile.modTime.String())
 			}
 		}
 	}
@@ -639,7 +631,6 @@ func transformImage(source string, fullsizeDestination string, thumbnailDestinat
 			return
 		}
 
-		fmt.Println("wrote thumbnailfile:", thumbnailDestination)
 	} else {
 		log.Println("Can't figure out what format to convert full size image to:", source)
 		exit(1)
@@ -725,7 +716,6 @@ func createMedia(source directory, gallerySubdirectory string, dryRun bool, conf
 	for _, file := range source.files {
 		if !file.exists {
 			sourceFilepath := filepath.Join(source.absPath, file.name)
-			fmt.Println("updating:", sourceFilepath)
 			thumbnailFilename := stripExtension(file.name) + config.files.imageExtension
 			var fullsizeFilename string
 			if isImageFile(file.name) {
