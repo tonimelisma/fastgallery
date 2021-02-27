@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -312,6 +313,12 @@ func TestCreateDirectoryTree(t *testing.T) {
 	defer emptyFile5.Close()
 	defer os.RemoveAll(tempDir + "/gallery/" + myConfig.files.thumbnailDir + "/file.jpg")
 
+	// Ensure thumbnail file is newer than source file
+	err = os.Chtimes(tempDir+"/gallery/"+myConfig.files.thumbnailDir+"/file.jpg", time.Now(), time.Now())
+	if err != nil {
+		t.Error("couldn't change mtime/atime")
+	}
+
 	emptyFile6, err := os.Create(tempDir + "/gallery/" + myConfig.files.fullsizeDir + "/file.jpg")
 	if err != nil {
 		t.Error("couldn't create original gallery file")
@@ -323,6 +330,8 @@ func TestCreateDirectoryTree(t *testing.T) {
 	gallery := createDirectoryTree(tempDir+"/gallery", "")
 
 	compareDirectoryTrees(&source, &gallery, myConfig)
+	t.Log(source)
+	t.Log(gallery)
 
 	changes := countChanges(source)
 

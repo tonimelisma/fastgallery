@@ -306,6 +306,8 @@ func stripExtension(filename string) string {
 	return filename[0 : len(filename)-len(extension)]
 }
 
+// reservedDirectory takes a path and checks whether it's a reserved name,
+// i.e. one of the internal directories used by fastgallery
 func reservedDirectory(path string, config configuration) bool {
 	if path == config.files.thumbnailDir {
 		return true
@@ -325,7 +327,7 @@ func reservedDirectory(path string, config configuration) bool {
 // hasDirectoryChanged checks whether the gallery directory has changed and thus
 // the HTML file needs to be updated. Could be due to:
 // At least one non-existent source file or directory (will be created in gallery)
-// We're doing a cleanup, and at least one non-existent gallery file or directory (will be removed from gallery HTML)
+// We're doing a cleanup, and at least one non-existent gallery file or directory (will be removed from gallery)
 func hasDirectoryChanged(source directory, gallery directory, cleanUp bool) bool {
 	for _, sourceFile := range source.files {
 		if !sourceFile.exists {
@@ -372,7 +374,9 @@ func compareDirectoryTrees(source *directory, gallery *directory, config configu
 		var thumbnailFile, fullsizeFile, originalFile *file
 
 		// Go through all subdirectories, and check the ones that match
-		// the thumbnail, full-size or original subdirectories
+		// the thumbnail, full-size or original subdirectories.
+		// Simultaneously, mark any gallery files which exist in source,
+		// so any clean-up doesn't inadvertently delete them.
 		for h, subDir := range gallery.subdirectories {
 			if subDir.name == config.files.thumbnailDir {
 				for i, outputFile := range gallery.subdirectories[h].files {
