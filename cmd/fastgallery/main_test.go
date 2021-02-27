@@ -190,7 +190,9 @@ func TestCopyRootAssets(t *testing.T) {
 	var tempGallery directory
 	tempGallery.absPath = tempDir
 
-	copyRootAssets(tempGallery, false, 0644)
+	config := initializeConfig()
+
+	copyRootAssets(tempGallery, false, config)
 
 	assert.FileExists(t, tempDir+"/back.png")
 	assert.FileExists(t, tempDir+"/folder.png")
@@ -330,8 +332,6 @@ func TestCreateDirectoryTree(t *testing.T) {
 	gallery := createDirectoryTree(tempDir+"/gallery", "")
 
 	compareDirectoryTrees(&source, &gallery, myConfig)
-	t.Log(source)
-	t.Log(gallery)
 
 	changes := countChanges(source)
 

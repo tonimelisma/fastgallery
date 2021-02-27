@@ -3,13 +3,13 @@ package main
 import (
 	"embed"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/cheggaaa/pb/v3"
@@ -36,6 +36,12 @@ type configuration struct {
 		imageExtension string
 		videoExtension string
 	}
+	assets struct {
+		htmlFile   string
+		backIcon   string
+		folderIcon string
+		playIcon   string
+	}
 	media struct {
 		thumbnailWidth    int
 		thumbnailHeight   int
@@ -55,6 +61,11 @@ func initializeConfig() (config configuration) {
 	config.files.fileMode = 0644
 	config.files.imageExtension = ".jpg"
 	config.files.videoExtension = ".mp4"
+
+	config.assets.htmlFile = "index.html"
+	config.assets.backIcon = "back.png"
+	config.assets.folderIcon = "folder.png"
+	config.assets.playIcon = "playbutton.png"
 
 	config.media.thumbnailWidth = 280
 	config.media.thumbnailHeight = 210
@@ -94,6 +105,22 @@ type directory struct {
 	files          []file
 	subdirectories []directory
 	exists         bool
+}
+
+// htmlData struct is loaded with all the information required to generate the go template
+type htmlData struct {
+	Title          string
+	Subdirectories []string
+	Files          []struct {
+		Filename  string
+		Thumbnail string
+		Fullsize  string
+		Original  string
+	}
+	CSS        []string
+	JS         []string
+	FolderIcon string
+	BackIcon   string
 }
 
 // exists checks whether given file, directory or symlink exists
@@ -472,44 +499,40 @@ func symlinkFile(source string, destination string) {
 	}
 }
 
-// TODO deprecate copyFile() function or use for originals
-func copyFile(sourceDir string, destDir string, filename string, dryRun bool) {
-	sourceFilename := filepath.Join(sourceDir, filename)
-	destFilename := filepath.Join(destDir, filename)
+// TODO add copyFile and option to use in lieu of symlinking
+/*
+func copyFile(source string, destination string) {
+	_, err := os.Stat(sourceFilename)
+	if err != nil {
+		log.Println("couldn't copy source file:", sourceFilename, err.Error())
+		exit(1)
+	}
 
-	if dryRun {
-		log.Println("would copy", sourceFilename, "to", destFilename)
-	} else {
-		_, err := os.Stat(sourceFilename)
-		if err != nil {
-			log.Println("couldn't copy source file:", sourceFilename, err.Error())
-			exit(1)
-		}
+	sourceHandle, err := os.Open(sourceFilename)
+	if err != nil {
+		log.Println("couldn't open source file for copy:", sourceFilename, err.Error())
+		exit(1)
+	}
+	defer sourceHandle.Close()
 
-		sourceHandle, err := os.Open(sourceFilename)
-		if err != nil {
-			log.Println("couldn't open source file for copy:", sourceFilename, err.Error())
-			exit(1)
-		}
-		defer sourceHandle.Close()
+	destHandle, err := os.Create(destFilename)
+	if err != nil {
+		log.Println("couldn't create dest file:", destFilename, err.Error())
+		exit(1)
+	}
+	defer destHandle.Close()
 
-		destHandle, err := os.Create(destFilename)
-		if err != nil {
-			log.Println("couldn't create dest file:", destFilename, err.Error())
-			exit(1)
-		}
-		defer destHandle.Close()
-
-		_, err = io.Copy(destHandle, sourceHandle)
-		if err != nil {
-			log.Println("couldn't copy file:", sourceFilename, destFilename, err.Error())
-			exit(1)
-		}
+	_, err = io.Copy(destHandle, sourceHandle)
+	if err != nil {
+		log.Println("couldn't copy file:", sourceFilename, destFilename, err.Error())
+		exit(1)
 	}
 }
+*/
 
 // copyRootAssets copies all the embedded assets to the root directory of the gallery
-func copyRootAssets(gallery directory, dryRun bool, fileMode os.FileMode) {
+func copyRootAssets(gallery directory, dryRun bool, config configuration) {
+	// TODO replace all hard-coded filesystem paths
 	assetDirectoryListing, err := assets.ReadDir("assets")
 	if err != nil {
 		log.Println("couldn't open embedded assets:", err.Error())
@@ -530,7 +553,7 @@ func copyRootAssets(gallery directory, dryRun bool, fileMode os.FileMode) {
 						log.Println("couldn't open embedded asset:", entry.Name(), ":", err.Error())
 						exit(1)
 					}
-					err = os.WriteFile(gallery.absPath+"/"+entry.Name(), filebuffer, fileMode)
+					err = os.WriteFile(gallery.absPath+"/"+entry.Name(), filebuffer, config.files.fileMode)
 					if err != nil {
 						log.Println("couldn't write embedded asset:", gallery.absPath+"/"+entry.Name(), ":", err.Error())
 						exit(1)
@@ -540,7 +563,7 @@ func copyRootAssets(gallery directory, dryRun bool, fileMode os.FileMode) {
 
 			switch entry.Name() {
 			// Copy back.png and folder.png
-			case "back.png", "folder.png":
+			case config.assets.backIcon, config.assets.folderIcon:
 				if dryRun {
 					log.Println("Would copy icon", entry.Name(), "to", gallery.absPath)
 				} else {
@@ -549,7 +572,7 @@ func copyRootAssets(gallery directory, dryRun bool, fileMode os.FileMode) {
 						log.Println("couldn't open embedded asset:", entry.Name(), ":", err.Error())
 						exit(1)
 					}
-					err = os.WriteFile(gallery.absPath+"/"+entry.Name(), filebuffer, fileMode)
+					err = os.WriteFile(gallery.absPath+"/"+entry.Name(), filebuffer, config.files.fileMode)
 					if err != nil {
 						log.Println("couldn't write embedded asset:", gallery.absPath+"/"+entry.Name(), ":", err.Error())
 						exit(1)
@@ -560,9 +583,96 @@ func copyRootAssets(gallery directory, dryRun bool, fileMode os.FileMode) {
 	}
 }
 
-func createHTML(depth int, source directory, dryRun bool) {
-	// TODO functionality
-	// TODO dry-run
+// createHTML creates an HTML file in the gallery directory, by filling in the thisHTML struct
+// with all the required information, combining it with the HTML template and saving it in the file
+func createHTML(depth int, source directory, galleryDirectory string, dryRun bool, config configuration) {
+	// TODO check whether gallerydirectory has subdirectory or if it's the root
+
+	// create the thisHTML struct and start filling it with the relevant data
+	var thisHTML htmlData
+
+	// The page title will be the directory name
+	thisHTML.Title = source.name
+
+	// Go through each directory and file and add them to the slices
+	for _, subdir := range source.subdirectories {
+		thisHTML.Subdirectories = append(thisHTML.Subdirectories, subdir.name)
+	}
+	for _, file := range source.files {
+		thumbnailFilename, fullsizeFilename := getGalleryFilenames(file.name, config)
+		thisHTML.Files = append(thisHTML.Files, struct {
+			Filename  string
+			Thumbnail string
+			Fullsize  string
+			Original  string
+		}{
+			Filename:  file.name,
+			Thumbnail: filepath.Join(config.files.thumbnailDir, thumbnailFilename),
+			Fullsize:  filepath.Join(config.files.fullsizeDir, fullsizeFilename),
+			Original:  filepath.Join(config.files.originalDir, file.name),
+		})
+	}
+
+	// We'll use relative paths to refer to the root direct assets such as icons, JS and CSS.
+	// The depth parameter is used to figure out how deep in a subdirectory we are
+	rootEscape := ""
+	for i := 0; i < depth; i = i + 1 {
+		rootEscape = rootEscape + "../"
+	}
+
+	assetDirectoryListing, err := assets.ReadDir("assets")
+	if err != nil {
+		log.Println("couldn't list embedded assets:", err.Error())
+		exit(1)
+	}
+
+	// Go through the embedded assets and add all JS and CSS files, link them
+	for _, entry := range assetDirectoryListing {
+		if !entry.IsDir() {
+			switch filepath.Ext(strings.ToLower(entry.Name())) {
+			// Copy all javascript and CSS files
+			case ".js":
+				thisHTML.JS = append(thisHTML.JS, filepath.Join(rootEscape, entry.Name()))
+			case ".css":
+				thisHTML.CSS = append(thisHTML.CSS, filepath.Join(rootEscape, entry.Name()))
+			}
+		}
+	}
+
+	// If we're not in the root directory, link the back icon and show it in the HTML page
+	if depth > 0 {
+		thisHTML.BackIcon = filepath.Join(rootEscape, config.assets.backIcon)
+	}
+	// Generic folder icon to be used for each subfolder
+	thisHTML.FolderIcon = filepath.Join(rootEscape, config.assets.folderIcon)
+
+	// thisHTML struct has been filled in successfully, parse the HTML template,
+	// fill in the data and write it to the correct file
+	htmlFilePath := filepath.Join(galleryDirectory, config.assets.htmlFile)
+	if dryRun {
+		log.Println("Would create HTML file:", htmlFilePath)
+	} else {
+		cookedTemplate, err := template.ParseFS(assets, "assets/gallery.gohtml")
+		if err != nil {
+			log.Println("couldn't parse HTML template", htmlFilePath, ":", err.Error())
+			exit(1)
+		}
+
+		htmlFileHandle, err := os.Create(htmlFilePath)
+		if err != nil {
+			log.Println("couldn't create HTML file", htmlFilePath, ":", err.Error())
+			exit(1)
+		}
+
+		err = cookedTemplate.Execute(htmlFileHandle, thisHTML)
+		if err != nil {
+			log.Println("couldn't execute HTML template", htmlFilePath, ":", err.Error())
+			exit(1)
+		}
+
+		htmlFileHandle.Sync()
+		htmlFileHandle.Close()
+	}
 }
 
 // getGalleryDirectoryNames parses the names for subdirectories for thumbnail, full size
@@ -706,6 +816,19 @@ func createOriginal(source string, destination string) {
 	symlinkFile(source, destination)
 }
 
+func getGalleryFilenames(sourceFilename string, config configuration) (thumbnailFilename string, fullsizeFilename string) {
+	thumbnailFilename = stripExtension(sourceFilename) + config.files.imageExtension
+	if isImageFile(sourceFilename) {
+		fullsizeFilename = stripExtension(sourceFilename) + config.files.imageExtension
+	} else if isVideoFile(sourceFilename) {
+		fullsizeFilename = stripExtension(sourceFilename) + config.files.videoExtension
+	} else {
+		log.Println("could not infer whether file is image or video:", sourceFilename)
+		exit(1)
+	}
+	return
+}
+
 // createMedia takes the source directory, and creates a thumbnail, full-size
 // version and original of each non-existing file to the respective gallery directory.
 func createMedia(source directory, gallerySubdirectory string, dryRun bool, config configuration, progressBar *pb.ProgressBar) {
@@ -720,16 +843,7 @@ func createMedia(source directory, gallerySubdirectory string, dryRun bool, conf
 	for _, file := range source.files {
 		if !file.exists {
 			sourceFilepath := filepath.Join(source.absPath, file.name)
-			thumbnailFilename := stripExtension(file.name) + config.files.imageExtension
-			var fullsizeFilename string
-			if isImageFile(file.name) {
-				fullsizeFilename = stripExtension(file.name) + config.files.imageExtension
-			} else if isVideoFile(file.name) {
-				fullsizeFilename = stripExtension(file.name) + config.files.videoExtension
-			} else {
-				log.Println("could not infer whether file is image or video:", sourceFilepath)
-				exit(1)
-			}
+			thumbnailFilename, fullsizeFilename := getGalleryFilenames(file.name, config)
 			thumbnailFilepath := filepath.Join(thumbnailGalleryDirectory, thumbnailFilename)
 			fullsizeFilepath := filepath.Join(fullsizeGalleryDirectory, fullsizeFilename)
 			originalFilepath := filepath.Join(originalGalleryDirectory, file.name)
@@ -779,7 +893,7 @@ func createGallery(depth int, source directory, gallery directory, dryRun bool, 
 
 	if hasDirectoryChanged(source, gallery, cleanUp) {
 		createMedia(source, galleryDirectory, dryRun, config, progressBar)
-		createHTML(depth, source, dryRun)
+		createHTML(depth, source, galleryDirectory, dryRun, config)
 		if cleanUp {
 			cleanDirectory(gallery, dryRun)
 		}
@@ -851,7 +965,7 @@ func main() {
 			defer vips.Shutdown()
 		}
 
-		copyRootAssets(gallery, args.DryRun, config.files.fileMode)
+		copyRootAssets(gallery, args.DryRun, config)
 		createGallery(0, source, gallery, args.DryRun, args.CleanUp, config, progressBar)
 
 		if !args.DryRun {
