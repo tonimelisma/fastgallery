@@ -10,7 +10,8 @@
 - Uses relative paths (safe for using in subdirectory or S3)
 - Minimal bloat (vanilla JS frontend, minimal CSS)
 
-*Please note that fastgallery is still beta, I am actively working on it*
+*Fastgallery has just been rewritten to better handle incremental updates of the gallery.
+*The command-line syntax changed to a more sane version, please see below
 
 ## Examples
 Please see [https://www.melisma.fi/fastgallery-examples/](https://www.melisma.fi/fastgallery-examples/)
@@ -31,18 +32,17 @@ Then install libvips42 for images and optionally ffmpeg (if you need video suppo
 `apt-get install libvips42 ffmpeg`
 
 ## Install
-1. Download the latest release and unpack
-2. Move into the unpacked directory
-3. Run ```make build```
-4. Copy ```bin/fastgallery``` to ```/usr/local/bin```
+1. Download the latest release
+2. Run ```make build```
+3. Copy ```bin/fastgallery``` to ```/usr/local/bin```
 
 ## Usage
-`fastgallery -o /var/www/html/gallery ~/Dropbox/Pictures`
+`fastgallery ~/Dropbox/Pictures /var/www/html/gallery`
 
 ## Roadmap
 For the prioritised roadmap, please see https://github.com/tonimelisma/fastgallery/projects/1
 
 ## Third party libraries
-- [govips](https://github.com/davidbyttow/govips), lightning fast image processing and resizing library
+- [govips](https://github.com/davidbyttow/govips), lightning fast image processing and resizing library in Go/C
 - [Feather](https://github.com/feathericons/feather) icons, simple and beautiful
 - [Primer](https://github.com/primer/css) CSS, Github's in-house design system
