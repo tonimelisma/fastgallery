@@ -283,6 +283,34 @@ func isMediaFile(filename string) bool {
 	return false
 }
 
+// isSymlinkDir checks if given directory entry is symbolic link to a directory
+func isSymlinkDir(targetPath string) (is bool) {
+	entry, err := os.Lstat(targetPath)
+	if err != nil {
+		log.Println("Couldn't list directory x contents:", targetPath, err.Error())
+		exit(1)
+	}
+
+	if entry.Mode()&os.ModeSymlink != 0 {
+		realPath, err := filepath.EvalSymlinks(targetPath)
+		if err != nil {
+			log.Println("Couldn't list directory contents:", targetPath)
+			exit(1)
+		}
+
+		realEntry, err := os.Lstat(realPath)
+		if err != nil {
+			log.Println("Couldn't list directory contents:", targetPath)
+			exit(1)
+		}
+
+		if realEntry.IsDir() {
+			return true
+		}
+	}
+	return false
+}
+
 // Create a recursive directory struct by traversing the directory absoluteDirectory.
 // The function calls itself recursively, carrying state in the relativeDirectory parameter.
 func createDirectoryTree(absoluteDirectory string, parentDirectory string) (tree directory) {
@@ -314,7 +342,7 @@ func createDirectoryTree(absoluteDirectory string, parentDirectory string) (tree
 	for _, entry := range list {
 		entryAbsPath := filepath.Join(absoluteDirectory, entry.Name())
 		entryRelPath := filepath.Join(parentDirectory, entry.Name())
-		if entry.IsDir() {
+		if entry.IsDir() || isSymlinkDir(entryAbsPath) {
 			if dirHasMediafiles(entryAbsPath) {
 				entrySubTree := createDirectoryTree(entryAbsPath, entryRelPath)
 				tree.subdirectories = append(tree.subdirectories, entrySubTree)
