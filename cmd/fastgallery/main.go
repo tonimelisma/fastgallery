@@ -869,6 +869,7 @@ func getGalleryFilenames(sourceFilename string, config configuration) (thumbnail
 }
 
 func transformFile(thisJob transformationJob, progressBar *pb.ProgressBar, config configuration) {
+	// TODO add ctrl-C support, signal intercept
 	if isImageFile(thisJob.filename) {
 		transformImage(thisJob.sourceFilepath, thisJob.fullsizeFilepath, thisJob.thumbnailFilepath, config)
 	} else if isVideoFile(thisJob.filename) {
@@ -942,16 +943,18 @@ func createMedia(source directory, gallerySubdirectory string, dryRun bool, conf
 func cleanDirectory(gallery directory, dryRun bool) {
 	for _, file := range gallery.files {
 		if !file.exists {
-			// TODO
 			if dryRun {
 				log.Println("would clean up file:", gallery.absPath, file.name)
+			} else {
+				// TODO cleanup functionality
 			}
 		}
 	}
 
 	for _, dir := range gallery.subdirectories {
 		if !dir.exists {
-			// TODO
+			// TODO cleanup functionality
+			// TODO directory bug - only after files are deleted we know which directories are empty
 			// What about reserved directories for thumbnails, pictures and originals?
 			// Implement logic to mark non-existent gallery directories
 			if dryRun {
