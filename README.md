@@ -5,25 +5,24 @@
 - Both photo and video support
 - Deals with any file formats (including HEIC and HEVC)
 - Only updates changed files, runs incrementally
+- If aborted, can continue from where it stopped and clean-up unfinished files
+- Will delete removed source files from gallery
 - Uses relative paths (safe for using in subdirectory or S3)
-- Minimal bloat (no third party frontend libraries, minimal CSS)
+- Minimal bloat (vanilla JS frontend, minimal CSS)
 
-*Please note that fastgallery is still beta, I am actively working on it*
+*Fastgallery has just been rewritten to better handle incremental updates of the gallery.
+*The command-line syntax changed to a more sane version, please see below
 
 ## Examples
-
 Please see [https://www.melisma.fi/fastgallery-examples/](https://www.melisma.fi/fastgallery-examples/)
 
 ## Dependencies
-
 ### MacOS
-
 For dependencies, use Homebrew to install:
 
 `brew install vips ffmpeg`
 
 ### Ubuntu Linux
-
 For Ubuntu 18.04 bionic or 20.04 focal, first add my PPA for latest libvips with HEIF support:
 
 `sudo add-apt-repository ppa:tonimelisma/ppa`
@@ -33,20 +32,17 @@ Then install libvips42 for images and optionally ffmpeg (if you need video suppo
 `apt-get install libvips42 ffmpeg`
 
 ## Install
-
-1. Download the latest release and unpack
+1. Download the latest release
 2. Run ```make build```
 3. Copy ```bin/fastgallery``` to ```/usr/local/bin```
-4. Copy contents of ```assets/``` to ```/usr/local/share/fastgallery```
-## Usage
 
-`fastgallery -o /var/www/html/gallery ~/Dropbox/Pictures`
+## Usage
+`fastgallery ~/Dropbox/Pictures /var/www/html/gallery`
 
 ## Roadmap
-
 For the prioritised roadmap, please see https://github.com/tonimelisma/fastgallery/projects/1
 
 ## Third party libraries
-- [govips](https://github.com/davidbyttow/govips), lightning fast image processing and resizing library
+- [govips](https://github.com/davidbyttow/govips), lightning fast image processing and resizing library in Go/C
 - [Feather](https://github.com/feathericons/feather) icons, simple and beautiful
 - [Primer](https://github.com/primer/css) CSS, Github's in-house design system

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>source</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="utf-8">
+	
+      <link href="fastgallery.css" rel="stylesheet">
+	
+      <link href="primer.css" rel="stylesheet">
+	
+ </head>
+
+ <body class="bg-gray">
+    <div id="thumbnails">
+        <h1 class="px-2 pb-2 my-0 m-md-3 m-lg-4">source</h1>
+
+        <!-- Thumbnail view. First subfolders. -->
+        <div class="container-xl m-0 m-md-2 m-lg-3">
+    
+    
+
+	
+            <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3">
+                <a href="subdir">
+                    <img class="box border border-gray box-shadow width-fit" src="folder.png" alt="subdir">
+                </a>
+                <span class="px-2 pb-2 width-fit css-truncate css-truncate-target">subdir</span>
+            </div>
+	
+
+	
+            <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3">
+                <img class="box border border-gray box-shadow width-fit" src="_thumbnail/2020-05-22 16.41.02.jpg" alt="2020-05-22 16.41.02.heic" onclick="changePicture(0);displayModal(true);">
+                <span class="px-2 pb-2 width-fit css-truncate css-truncate-target">2020-05-22 16.41.02.heic</span>
+			</div>
+	
+            <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3">
+                <img class="box border border-gray box-shadow width-fit" src="_thumbnail/2021-01-01 17.11.35.jpg" alt="2021-01-01 17.11.35.heic" onclick="changePicture(1);displayModal(true);">
+                <span class="px-2 pb-2 width-fit css-truncate css-truncate-target">2021-01-01 17.11.35.heic</span>
+			</div>
+	
+            <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3">
+                <img class="box border border-gray box-shadow width-fit" src="_thumbnail/2021-01-02 23.51.34.jpg" alt="2021-01-02 23.51.34.mp4" onclick="changePicture(2);displayModal(true);">
+                <span class="px-2 pb-2 width-fit css-truncate css-truncate-target">2021-01-02 23.51.34.mp4</span>
+			</div>
+	
+            <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3">
+                <img class="box border border-gray box-shadow width-fit" src="_thumbnail/2021-02-22 15.36.43-1.jpg" alt="2021-02-22 15.36.43-1.heic" onclick="changePicture(3);displayModal(true);">
+                <span class="px-2 pb-2 width-fit css-truncate css-truncate-target">2021-02-22 15.36.43-1.heic</span>
+			</div>
+	
+            <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3">
+                <img class="box border border-gray box-shadow width-fit" src="_thumbnail/2021-02-25 15.40.44.jpg" alt="2021-02-25 15.40.44.png" onclick="changePicture(4);displayModal(true);">
+                <span class="px-2 pb-2 width-fit css-truncate css-truncate-target">2021-02-25 15.40.44.png</span>
+			</div>
+	
+            <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3">
+                <img class="box border border-gray box-shadow width-fit" src="_thumbnail/_DSC9363_DxO.jpg" alt="_DSC9363_DxO.jpg" onclick="changePicture(5);displayModal(true);">
+                <span class="px-2 pb-2 width-fit css-truncate css-truncate-target">_DSC9363_DxO.jpg</span>
+			</div>
+	
+            <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3">
+                <img class="box border border-gray box-shadow width-fit" src="_thumbnail/_DSC9439.jpg" alt="_DSC9439.jpg" onclick="changePicture(6);displayModal(true);">
+                <span class="px-2 pb-2 width-fit css-truncate css-truncate-target">_DSC9439.jpg</span>
+			</div>
+	
+
+        </div>
+    </div>
+
+    <!-- Modal which shows individual pictures full-screen.
+         Covers thumbnail view. Hidden by default, unless URL contains
+         hashtag and thumbnail name. -->
+    <div class="position-fixed top-0 left-0 width-full height-full d-flex flex-column flex-justify-center flex-items-center box border border-gray box-shadow bg-gray" id="modal" hidden>
+        <div class="bg-gray clearfix position-absolute top-0 p-1" id="modalHeader">
+            <div class="float-right modalControl float-left" onclick="displayModal(false);">
+                <i data-feather="x"></i>
+            </div>
+            <div class="float-right modalControl float-left">
+                <a href="#" id="modalDownload" download>
+                    <i data-feather="download"></i>
+                </a>
+            </div>
+        </div>
+        <div id="modalMedia" class="d-flex flex-justify-center"></div>
+        <div class="bg-gray position-absolute bottom-0 d-flex flex-justify-center p-1" id="modalFooter">
+            <div class="float-left modalControl float-left" onclick="prevPicture();">
+                <i data-feather="chevron-left"></i>
+            </div>
+            <div class="mx-auto float-left width-fit css-truncate css-truncate-target" id="modalDescription"></div>
+            <div class="float-right modalControl float-left" onclick="nextPicture();">
+                <i data-feather="chevron-right"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statically generated javascript array of pictures on this page -->
+    <script>
+        const pictures = [
+	
+	
+	{
+		thumbnail: "_thumbnail/2020-05-22 16.41.02.jpg",
+		fullsize: "_fullsize/2020-05-22 16.41.02.jpg",
+		original: "_original/2020-05-22 16.41.02.heic",
+		filename: "2020-05-22 16.41.02.heic"
+	}
+	
+	,
+	{
+		thumbnail: "_thumbnail/2021-01-01 17.11.35.jpg",
+		fullsize: "_fullsize/2021-01-01 17.11.35.jpg",
+		original: "_original/2021-01-01 17.11.35.heic",
+		filename: "2021-01-01 17.11.35.heic"
+	}
+	
+	,
+	{
+		thumbnail: "_thumbnail/2021-01-02 23.51.34.jpg",
+		fullsize: "_fullsize/2021-01-02 23.51.34.mp4",
+		original: "_original/2021-01-02 23.51.34.mp4",
+		filename: "2021-01-02 23.51.34.mp4"
+	}
+	
+	,
+	{
+		thumbnail: "_thumbnail/2021-02-22 15.36.43-1.jpg",
+		fullsize: "_fullsize/2021-02-22 15.36.43-1.jpg",
+		original: "_original/2021-02-22 15.36.43-1.heic",
+		filename: "2021-02-22 15.36.43-1.heic"
+	}
+	
+	,
+	{
+		thumbnail: "_thumbnail/2021-02-25 15.40.44.jpg",
+		fullsize: "_fullsize/2021-02-25 15.40.44.jpg",
+		original: "_original/2021-02-25 15.40.44.png",
+		filename: "2021-02-25 15.40.44.png"
+	}
+	
+	,
+	{
+		thumbnail: "_thumbnail/_DSC9363_DxO.jpg",
+		fullsize: "_fullsize/_DSC9363_DxO.jpg",
+		original: "_original/_DSC9363_DxO.jpg",
+		filename: "_DSC9363_DxO.jpg"
+	}
+	
+	,
+	{
+		thumbnail: "_thumbnail/_DSC9439.jpg",
+		fullsize: "_fullsize/_DSC9439.jpg",
+		original: "_original/_DSC9439.jpg",
+		filename: "_DSC9439.jpg"
+	}
+	
+    ]
+    </script>
+	
+      <script src="fastgallery.js"></script>
+	
+      <script src="feather.min.js"></script>
+	
+    <script>
+        feather.replace()
+    </script>
+
+ </body>
+</html>

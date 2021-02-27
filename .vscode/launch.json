@@ -5,11 +5,15 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Attach to Process",
+            "name": "Launch file",
             "type": "go",
-            "request": "attach",
-            "mode": "local",
-            "processId": 585791
+            "request": "launch",
+            "mode": "debug",
+            "program": "${file}",
+            "args": [
+                "../../testing/source/",
+                "../../testing/gallery/"
+            ]
         }
     ]
 }
