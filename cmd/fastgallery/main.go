@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
@@ -121,6 +122,16 @@ type htmlData struct {
 	JS         []string
 	FolderIcon string
 	BackIcon   string
+}
+
+// transformationJob struct is used to communicate needed image/video transformations to
+// individual concurrent goroutines
+type transformationJob struct {
+	filename          string
+	sourceFilepath    string
+	thumbnailFilepath string
+	fullsizeFilepath  string
+	originalFilepath  string
 }
 
 // exists checks whether given file, directory or symlink exists
@@ -829,6 +840,28 @@ func getGalleryFilenames(sourceFilename string, config configuration) (thumbnail
 	return
 }
 
+func transformFile(thisJob transformationJob, progressBar *pb.ProgressBar, config configuration) {
+	if isImageFile(thisJob.filename) {
+		transformImage(thisJob.sourceFilepath, thisJob.fullsizeFilepath, thisJob.thumbnailFilepath, config)
+	} else if isVideoFile(thisJob.filename) {
+		transformVideo(thisJob.sourceFilepath, thisJob.fullsizeFilepath, thisJob.thumbnailFilepath, config)
+	} else {
+		log.Println("could not infer whether file is image or video(2):", thisJob.sourceFilepath)
+		exit(1)
+	}
+	createOriginal(thisJob.sourceFilepath, thisJob.originalFilepath)
+	progressBar.Increment()
+}
+
+// This is the main concurrent goroutine that takes care of the parallelisation. A big bunch of them
+// are created in a worker pool and they're fed new images/videos to transform via a channel.
+func transformationWorker(thisDirectoryWG *sync.WaitGroup, thisDirectoryJobs chan transformationJob, progressBar *pb.ProgressBar, config configuration) {
+	defer thisDirectoryWG.Done()
+	for thisJob := range thisDirectoryJobs {
+		transformFile(thisJob, progressBar, config)
+	}
+}
+
 // createMedia takes the source directory, and creates a thumbnail, full-size
 // version and original of each non-existing file to the respective gallery directory.
 func createMedia(source directory, gallerySubdirectory string, dryRun bool, config configuration, progressBar *pb.ProgressBar) {
@@ -839,30 +872,42 @@ func createMedia(source directory, gallerySubdirectory string, dryRun bool, conf
 	createDirectory(fullsizeGalleryDirectory, dryRun, config.files.directoryMode)
 	createDirectory(originalGalleryDirectory, dryRun, config.files.directoryMode)
 
+	// This is the concurrency part of the function. Set up a worker pool, channel to communicate with them,
+	// and a wait group to block in the end.
+	thisDirectoryJobs := make(chan transformationJob, 10000)
+	var thisDirectoryWG sync.WaitGroup
+	for i := 1; i <= config.concurrency; i = i + 1 {
+		thisDirectoryWG.Add(1)
+		go transformationWorker(&thisDirectoryWG, thisDirectoryJobs, progressBar, config)
+	}
+	// Here ends the concurrency code. Below we loop through the files, pushing them as
+	// new jobs via the channel to the worker pool, and in the end of the function we
+	// have code to wrap-up the concurrency.
+
 	// TODO concurrency
 	for _, file := range source.files {
 		if !file.exists {
-			sourceFilepath := filepath.Join(source.absPath, file.name)
+			var thisJob transformationJob
+			thisJob.filename = file.name
+			thisJob.sourceFilepath = filepath.Join(source.absPath, file.name)
 			thumbnailFilename, fullsizeFilename := getGalleryFilenames(file.name, config)
-			thumbnailFilepath := filepath.Join(thumbnailGalleryDirectory, thumbnailFilename)
-			fullsizeFilepath := filepath.Join(fullsizeGalleryDirectory, fullsizeFilename)
-			originalFilepath := filepath.Join(originalGalleryDirectory, file.name)
+			thisJob.thumbnailFilepath = filepath.Join(thumbnailGalleryDirectory, thumbnailFilename)
+			thisJob.fullsizeFilepath = filepath.Join(fullsizeGalleryDirectory, fullsizeFilename)
+			thisJob.originalFilepath = filepath.Join(originalGalleryDirectory, file.name)
+
 			if dryRun {
-				log.Println("Would convert:", sourceFilepath, thumbnailFilepath, fullsizeFilepath, originalFilepath)
+				log.Println("Would convert:", thisJob.sourceFilepath, thisJob.thumbnailFilepath, thisJob.fullsizeFilepath, thisJob.originalFilepath)
 			} else {
-				if isImageFile(file.name) {
-					transformImage(sourceFilepath, fullsizeFilepath, thumbnailFilepath, config)
-				} else if isVideoFile(file.name) {
-					transformVideo(sourceFilepath, fullsizeFilepath, thumbnailFilepath, config)
-				} else {
-					log.Println("could not infer whether file is image or video(2):", sourceFilepath)
-					exit(1)
-				}
-				createOriginal(sourceFilepath, originalFilepath)
-				progressBar.Increment()
+				thisDirectoryJobs <- thisJob
 			}
 		}
 	}
+
+	// Here we have the tail end of the concurrency code. The main thread blocks here to wait
+	// for all the workers to have transformed all the image and video jobs given to them in the loop
+	// above. We close the channel to clarify to the workers there's no more stuff to do.
+	close(thisDirectoryJobs)
+	thisDirectoryWG.Wait()
 }
 
 // Clean gallery directory of any directories or files which don't exist in source
