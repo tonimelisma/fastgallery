@@ -282,7 +282,7 @@ func isMediaFile(filename string, noVideos bool) bool {
 		return true
 	}
 
-	if noVideos && isVideoFile(filename) {
+	if !noVideos && isVideoFile(filename) {
 		return true
 	}
 
