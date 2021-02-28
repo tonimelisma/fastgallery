@@ -631,8 +631,6 @@ func copyRootAssets(gallery directory, dryRun bool, config configuration) {
 // createHTML creates an HTML file in the gallery directory, by filling in the thisHTML struct
 // with all the required information, combining it with the HTML template and saving it in the file
 func createHTML(depth int, source directory, galleryDirectory string, dryRun bool, config configuration) {
-	// TODO check whether gallerydirectory has subdirectory or if it's the root
-
 	// create the thisHTML struct and start filling it with the relevant data
 	var thisHTML htmlData
 
@@ -932,7 +930,6 @@ func createMedia(source directory, gallerySubdirectory string, dryRun bool, conf
 	// new jobs via the channel to the worker pool, and in the end of the function we
 	// have code to wrap-up the concurrency.
 
-	// TODO concurrency
 	for _, file := range source.files {
 		if !file.exists {
 			var thisJob transformationJob
@@ -972,7 +969,7 @@ func cleanDirectory(gallery directory, dryRun bool) {
 
 	for _, dir := range gallery.subdirectories {
 		if !dir.exists {
-			// TODO cleanup functionality
+			// TODO cleanup functionality, reserved directories
 			// TODO directory bug - only after files are deleted we know which directories are empty
 			// What about reserved directories for thumbnails, pictures and originals?
 			// Implement logic to mark non-existent gallery directories
