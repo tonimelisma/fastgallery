@@ -28,6 +28,10 @@ var assets embed.FS
 // Define global exit function, so unit tests can override this
 var exit = os.Exit
 
+// Define global state for slice of WIP transformation jobs, used by signalHandler()
+var wipJobs = make(map[string]transformationJob)
+var wipJobMutex = sync.Mutex{}
+
 // configuration state is stored in this struct
 type configuration struct {
 	files struct {
@@ -76,7 +80,8 @@ func initializeConfig() (config configuration) {
 	config.media.fullsizeMaxHeight = 1080
 	config.media.videoMaxSize = 640
 
-	config.concurrency = 8
+	// TODO adjust based on cores
+	config.concurrency = 4
 
 	return config
 }
@@ -869,8 +874,17 @@ func getGalleryFilenames(sourceFilename string, config configuration) (thumbnail
 	return
 }
 
+// transformFile takes a transformation job (an image or video) and creates a thumbnail, full-size
+// image and a copy of the original
 func transformFile(thisJob transformationJob, progressBar *pb.ProgressBar, config configuration) {
-	// TODO add ctrl-C support, signal intercept
+	// Before we begin work, add all work-in-progress files to wipSlice
+	// In case the program is killed before we're finished, signalHandler() deletes all the wip files.
+	// This way, no half-finished files will stay on the hard drive
+	wipJobMutex.Lock()
+	wipJobs[thisJob.sourceFilepath] = thisJob
+	wipJobMutex.Unlock()
+
+	// Do the actual transformation and increment the progress bar
 	if isImageFile(thisJob.filename) {
 		transformImage(thisJob.sourceFilepath, thisJob.fullsizeFilepath, thisJob.thumbnailFilepath, config)
 	} else if isVideoFile(thisJob.filename) {
@@ -881,6 +895,10 @@ func transformFile(thisJob transformationJob, progressBar *pb.ProgressBar, confi
 	}
 	createOriginal(thisJob.sourceFilepath, thisJob.originalFilepath)
 	progressBar.Increment()
+
+	wipJobMutex.Lock()
+	delete(wipJobs, thisJob.sourceFilepath)
+	wipJobMutex.Unlock()
 }
 
 // This is the main concurrent goroutine that takes care of the parallelisation. A big bunch of them
@@ -995,6 +1013,13 @@ func setupSignalHandler() {
 func signalHandler(signalChan chan os.Signal) {
 	<-signalChan
 	log.Println("Ctrl-C received, cleaning up and aborting...")
+	wipJobMutex.Lock()
+	for _, job := range wipJobs {
+		fmt.Println("cleaning:", job.filename)
+		os.Remove(job.thumbnailFilepath)
+		os.Remove(job.fullsizeFilepath)
+		os.Remove(job.originalFilepath)
+	}
 	exit(0)
 }
 
