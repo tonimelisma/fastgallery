@@ -970,6 +970,7 @@ func cleanDirectory(gallery directory, dryRun bool) {
 	for _, dir := range gallery.subdirectories {
 		if !dir.exists {
 			// TODO cleanup functionality, reserved directories
+			// TODO recurse in the wrong order, go deep first and start from leafs
 			// TODO directory bug - only after files are deleted we know which directories are empty
 			// What about reserved directories for thumbnails, pictures and originals?
 			// Implement logic to mark non-existent gallery directories
@@ -1012,7 +1013,6 @@ func signalHandler(signalChan chan os.Signal) {
 	log.Println("Ctrl-C received, cleaning up and aborting...")
 	wipJobMutex.Lock()
 	for _, job := range wipJobs {
-		fmt.Println("cleaning:", job.filename)
 		os.Remove(job.thumbnailFilepath)
 		os.Remove(job.fullsizeFilepath)
 		os.Remove(job.originalFilepath)
@@ -1030,6 +1030,7 @@ func main() {
 		CleanUp  bool   `arg:"-c,--cleanup" help:"cleanup, delete files and directories in gallery which don't exist in source"`
 		NoVideos bool   `arg:"--no-videos" help:"ignore videos, only include images"`
 	}
+	// TODO implement verbose
 
 	// Parse command-line arguments
 	arg.MustParse(&args)
