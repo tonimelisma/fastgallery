@@ -102,7 +102,7 @@ func TestDirHasMediaFiles(t *testing.T) {
 	defer emptyFile.Close()
 	defer os.RemoveAll(tempDir + "/file.raw")
 
-	assert.True(t, dirHasMediafiles(tempDir))
+	assert.True(t, dirHasMediafiles(tempDir, false))
 }
 
 func TestDirHasMediaFilesFailing(t *testing.T) {
@@ -119,7 +119,7 @@ func TestDirHasMediaFilesFailing(t *testing.T) {
 	defer emptyFile.Close()
 	defer os.RemoveAll(tempDir + "/file.txt")
 
-	assert.False(t, dirHasMediafiles(tempDir))
+	assert.False(t, dirHasMediafiles(tempDir, false))
 }
 
 func TestDirHasMediaFilesRecurse(t *testing.T) {
@@ -142,7 +142,7 @@ func TestDirHasMediaFilesRecurse(t *testing.T) {
 	defer emptyFile.Close()
 	defer os.RemoveAll(tempDir + "/subdir/file.jpg")
 
-	assert.True(t, dirHasMediafiles(tempDir))
+	assert.True(t, dirHasMediafiles(tempDir, false))
 }
 
 func TestDirHasMediaFilesRecurseFailing(t *testing.T) {
@@ -165,7 +165,7 @@ func TestDirHasMediaFilesRecurseFailing(t *testing.T) {
 	defer emptyFile.Close()
 	defer os.RemoveAll(tempDir + "/subdir/file.txt")
 
-	assert.False(t, dirHasMediafiles(tempDir))
+	assert.False(t, dirHasMediafiles(tempDir, false))
 }
 
 func TestIsXxxFile(t *testing.T) {
@@ -175,9 +175,10 @@ func TestIsXxxFile(t *testing.T) {
 	assert.True(t, isImageFile("test.jpg"))
 	assert.False(t, isImageFile("test.mp4"))
 	assert.False(t, isImageFile("test.txt"))
-	assert.True(t, isMediaFile("test.mp4"))
-	assert.True(t, isMediaFile("test.jpg"))
-	assert.False(t, isMediaFile("test.txt"))
+	assert.True(t, isMediaFile("test.mp4", false))
+	assert.True(t, isMediaFile("test.jpg", false))
+	assert.False(t, isMediaFile("test.txt", false))
+	assert.False(t, isMediaFile("test.mp4", true))
 }
 
 func TestCopyRootAssets(t *testing.T) {
@@ -328,8 +329,8 @@ func TestCreateDirectoryTree(t *testing.T) {
 	defer emptyFile6.Close()
 	defer os.RemoveAll(tempDir + "/gallery/" + myConfig.files.fullsizeDir + "/file.jpg")
 
-	source := createDirectoryTree(tempDir+"/source", "")
-	gallery := createDirectoryTree(tempDir+"/gallery", "")
+	source := createDirectoryTree(tempDir+"/source", "", false)
+	gallery := createDirectoryTree(tempDir+"/gallery", "", false)
 
 	compareDirectoryTrees(&source, &gallery, myConfig)
 

@@ -6,10 +6,12 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"text/template"
 	"time"
 
@@ -218,7 +220,7 @@ func validateSourceAndGallery(source string, gallery string) (string, string) {
 // Checks whether directory has media files, or subdirectories with media files.
 // If there's a subdirectory that's empty or that has directories or files which
 // aren't media files, we leave that out of the directory tree.
-func dirHasMediafiles(directory string) (isEmpty bool) {
+func dirHasMediafiles(directory string, noVideos bool) (isEmpty bool) {
 	list, err := os.ReadDir(directory)
 	if err != nil {
 		// If we can't read the directory contents, it doesn't have media files in it
@@ -234,10 +236,10 @@ func dirHasMediafiles(directory string) (isEmpty bool) {
 		entryAbsPath := filepath.Join(directory, entry.Name())
 		if entry.IsDir() {
 			// Recursion to subdirectories
-			if dirHasMediafiles(entryAbsPath) {
+			if dirHasMediafiles(entryAbsPath, noVideos) {
 				return true
 			}
-		} else if isMediaFile(entryAbsPath) {
+		} else if isMediaFile(entryAbsPath, noVideos) {
 			// We found at least one media file, return true
 			return true
 		}
@@ -270,13 +272,12 @@ func isImageFile(filename string) bool {
 }
 
 // Check whether given absolute path is a media file
-func isMediaFile(filename string) bool {
+func isMediaFile(filename string, noVideos bool) bool {
 	if isImageFile(filename) {
 		return true
 	}
 
-	// TODO optIgnoreVideos
-	if isVideoFile(filename) {
+	if noVideos && isVideoFile(filename) {
 		return true
 	}
 
@@ -313,7 +314,7 @@ func isSymlinkDir(targetPath string) (is bool) {
 
 // Create a recursive directory struct by traversing the directory absoluteDirectory.
 // The function calls itself recursively, carrying state in the relativeDirectory parameter.
-func createDirectoryTree(absoluteDirectory string, parentDirectory string) (tree directory) {
+func createDirectoryTree(absoluteDirectory string, parentDirectory string, noVideos bool) (tree directory) {
 	// In case the target directory doesn't exist, it's the gallery directory
 	// which hasn't been created yet. We'll just create a dummy tree and return it.
 	if !exists(absoluteDirectory) && parentDirectory == "" {
@@ -343,11 +344,11 @@ func createDirectoryTree(absoluteDirectory string, parentDirectory string) (tree
 		entryAbsPath := filepath.Join(absoluteDirectory, entry.Name())
 		entryRelPath := filepath.Join(parentDirectory, entry.Name())
 		if entry.IsDir() || isSymlinkDir(entryAbsPath) {
-			if dirHasMediafiles(entryAbsPath) {
-				entrySubTree := createDirectoryTree(entryAbsPath, entryRelPath)
+			if dirHasMediafiles(entryAbsPath, noVideos) {
+				entrySubTree := createDirectoryTree(entryAbsPath, entryRelPath, noVideos)
 				tree.subdirectories = append(tree.subdirectories, entrySubTree)
 			}
-		} else if isMediaFile(entryAbsPath) {
+		} else if isMediaFile(entryAbsPath, noVideos) {
 			entryFileInfo, err := entry.Info()
 			if err != nil {
 				log.Println("Couldn't stat file information for media file:", entry.Name())
@@ -985,14 +986,27 @@ func createGallery(depth int, source directory, gallery directory, dryRun bool, 
 	}
 }
 
+func setupSignalHandler() {
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
+	go signalHandler(signalChan)
+}
+
+func signalHandler(signalChan chan os.Signal) {
+	<-signalChan
+	log.Println("Ctrl-C received, cleaning up and aborting...")
+	exit(0)
+}
+
 func main() {
 	// Define command-line arguments
 	var args struct {
-		Source  string `arg:"positional,required" help:"Source directory for images/videos"`
-		Gallery string `arg:"positional,required" help:"Destination directory to create gallery in"`
-		Verbose bool   `arg:"-v,--verbose" help:"verbosity level"`
-		DryRun  bool   `arg:"--dry-run" help:"dry run; don't change anything, just print what would be done"`
-		CleanUp bool   `arg:"-c,--cleanup" help:"cleanup, delete files and directories in gallery which don't exist in source"`
+		Source   string `arg:"positional,required" help:"Source directory for images/videos"`
+		Gallery  string `arg:"positional,required" help:"Destination directory to create gallery in"`
+		Verbose  bool   `arg:"-v,--verbose" help:"verbosity level"`
+		DryRun   bool   `arg:"--dry-run" help:"dry run; don't change anything, just print what would be done"`
+		CleanUp  bool   `arg:"-c,--cleanup" help:"cleanup, delete files and directories in gallery which don't exist in source"`
+		NoVideos bool   `arg:"--no-videos" help:"ignore videos, only include images"`
 	}
 
 	// Parse command-line arguments
@@ -1011,14 +1025,16 @@ func main() {
 	log.Println("Finding all media files...")
 
 	// Creating a directory struct of both source as well as gallery directories
-	source := createDirectoryTree(args.Source, "")
-	gallery := createDirectoryTree(args.Gallery, "")
+	source := createDirectoryTree(args.Source, "", args.NoVideos)
+	gallery := createDirectoryTree(args.Gallery, "", args.NoVideos)
 
 	// Check which source media exists in gallery
 	compareDirectoryTrees(&source, &gallery, config)
 
 	// Count number of source files which don't exist in gallery
 	changes := countChanges(source)
+
+	// If there are changes, create the gallery
 	if changes > 0 {
 		log.Println(changes, "files to update")
 		if !exists(gallery.absPath) {
@@ -1040,6 +1056,9 @@ func main() {
 			}
 			defer vips.Shutdown()
 		}
+
+		// Handle ctrl-C or other signals
+		setupSignalHandler()
 
 		copyRootAssets(gallery, args.DryRun, config)
 		createGallery(0, source, gallery, args.DryRun, args.CleanUp, config, progressBar)
