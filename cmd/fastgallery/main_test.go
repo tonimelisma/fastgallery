@@ -340,6 +340,23 @@ func TestCreateDirectoryTree(t *testing.T) {
 }
 
 // TODO tests for
+// isDirectory with symlinked dir
+// isSymlinkDir
+// createDirectoryTree("nonexistent", "")
+// hasDirectoryChanged
+// symlinkFile
+// createHTML
+// getGalleryDirectoryNames
+// transformImage
+// transformVideo
+// createOriginal
+// getGalleryFilenames
+// transformFile
+// transformationWorker
+// createMedia
+// cleanDirectory
 // createGallery
 //   - exists, doesn't exist, some gallery files exist / some don't
 //   - thumbnail modified earlier than original or vice versa
+// setupSignalHandler
+// signalHandler

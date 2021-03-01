@@ -1031,6 +1031,7 @@ func main() {
 		NoVideos bool   `arg:"--no-videos" help:"ignore videos, only include images"`
 	}
 	// TODO implement verbose
+	// TODO implement logging into a file
 
 	// Parse command-line arguments
 	arg.MustParse(&args)
