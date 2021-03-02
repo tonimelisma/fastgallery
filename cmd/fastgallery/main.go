@@ -2,12 +2,14 @@ package main
 
 import (
 	"embed"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -293,20 +295,19 @@ func isMediaFile(filename string, noVideos bool) bool {
 func isSymlinkDir(targetPath string) (is bool) {
 	entry, err := os.Lstat(targetPath)
 	if err != nil {
-		log.Println("Couldn't list directory x contents:", targetPath, err.Error())
+		log.Println("Couldn't lstat dir path:", targetPath, err.Error())
 		exit(1)
 	}
 
 	if entry.Mode()&os.ModeSymlink != 0 {
 		realPath, err := filepath.EvalSymlinks(targetPath)
 		if err != nil {
-			log.Println("Couldn't list directory contents:", targetPath)
-			exit(1)
+			return false
 		}
 
 		realEntry, err := os.Lstat(realPath)
 		if err != nil {
-			log.Println("Couldn't list directory contents:", targetPath)
+			log.Println("Couldn't lstat file path:", targetPath)
 			exit(1)
 		}
 
@@ -339,7 +340,7 @@ func createDirectoryTree(absoluteDirectory string, parentDirectory string, noVid
 	// List directory contents
 	list, err := os.ReadDir(absoluteDirectory)
 	if err != nil {
-		log.Println("Couldn't list directory contents:", absoluteDirectory)
+		log.Println("Couldn't read directory contents:", absoluteDirectory)
 		exit(1)
 	}
 
@@ -529,19 +530,21 @@ func createDirectory(destination string, dryRun bool, dirMode os.FileMode) {
 	}
 }
 
-func symlinkFile(source string, destination string) {
+func symlinkFile(source string, destination string) error {
 	if _, err := os.Stat(destination); err == nil {
 		err := os.Remove(destination)
 		if err != nil {
 			log.Println("couldn't remove symlink:", source, destination)
-			return
+			return err
 		}
 	}
 	err := os.Symlink(source, destination)
 	if err != nil {
 		log.Println("couldn't symlink:", source, destination)
-		return
+		return err
 	}
+
+	return nil
 }
 
 // TODO add copyFile and option to use in lieu of symlinking
@@ -727,19 +730,19 @@ func getGalleryDirectoryNames(galleryDirectory string, config configuration) (th
 	return
 }
 
-func transformImage(source string, fullsizeDestination string, thumbnailDestination string, config configuration) {
+func transformImage(source string, fullsizeDestination string, thumbnailDestination string, config configuration) error {
 	if config.files.imageExtension == ".jpg" {
 		// First create full-size image
 		image, err := vips.NewImageFromFile(source)
 		if err != nil {
 			log.Println("couldn't open full-size image:", source, err.Error())
-			return
+			return err
 		}
 
 		err = image.AutoRotate()
 		if err != nil {
 			log.Println("couldn't autorotate full-size image:", source, err.Error())
-			return
+			return err
 		}
 
 		// Calculate the scaling factor used to make the image smaller
@@ -753,48 +756,49 @@ func transformImage(source string, fullsizeDestination string, thumbnailDestinat
 		err = image.Resize(scale, vips.KernelAuto)
 		if err != nil {
 			log.Println("couldn't resize full-size image:", source, err.Error())
-			return
+			return err
 		}
 
 		ep := vips.NewDefaultJPEGExportParams()
 		fullsizeBuffer, _, err := image.Export(ep)
 		if err != nil {
 			log.Println("couldn't export full-size image:", source, err.Error())
-			return
+			return err
 		}
 
 		err = os.WriteFile(fullsizeDestination, fullsizeBuffer, config.files.fileMode)
 		if err != nil {
 			log.Println("couldn't write full-size image:", fullsizeDestination, err.Error())
-			return
+			return err
 		}
 
 		// After full-size image, create thumbnail
 		err = image.Thumbnail(config.media.thumbnailWidth, config.media.thumbnailHeight, vips.InterestingAttention)
 		if err != nil {
 			log.Println("couldn't crop thumbnail:", err.Error())
-			return
+			return err
 		}
 
 		thumbnailBuffer, _, err := image.Export(ep)
 		if err != nil {
 			log.Println("couldn't export thumbnail image:", source, err.Error())
-			return
+			return err
 		}
 
 		err = os.WriteFile(thumbnailDestination, thumbnailBuffer, config.files.fileMode)
 		if err != nil {
 			log.Println("couldn't write thumbnail image:", thumbnailDestination, err.Error())
-			return
+			return err
 		}
-
 	} else {
 		log.Println("Can't figure out what format to convert full size image to:", source)
-		exit(1)
+		return errors.New("invalid target format for full-size image")
 	}
+
+	return nil
 }
 
-func transformVideo(source string, fullsizeDestination string, thumbnailDestination string, config configuration) {
+func transformVideo(source string, fullsizeDestination string, thumbnailDestination string, config configuration) error {
 	// Resize full-size video
 	ffmpegCommand := exec.Command("ffmpeg", "-y", "-i", source, "-pix_fmt", "yuv420p", "-vcodec", "libx264", "-acodec", "aac", "-movflags", "faststart", "-r", "24", "-vf", "scale='min("+strconv.Itoa(config.media.videoMaxSize)+",iw)':'min("+strconv.Itoa(config.media.videoMaxSize)+",ih)':force_original_aspect_ratio=decrease", "-crf", "28", "-loglevel", "fatal", fullsizeDestination)
 	// TODO capture stdout/err to bytes buffer instead
@@ -804,7 +808,7 @@ func transformVideo(source string, fullsizeDestination string, thumbnailDestinat
 	err := ffmpegCommand.Run()
 	if err != nil {
 		log.Println("Could not create full-size video transcode:", source)
-		return
+		return err
 	}
 
 	// Create thumbnail image of video
@@ -816,47 +820,49 @@ func transformVideo(source string, fullsizeDestination string, thumbnailDestinat
 	err = ffmpegCommand2.Run()
 	if err != nil {
 		log.Println("Could not create thumbnail of video:", source)
-		return
+		return err
 	}
 
 	// Take thumbnail and overlay triangle image on top of it
 	image, err := vips.NewImageFromFile(thumbnailDestination)
 	if err != nil {
 		log.Println("Could not open video thumbnail:", thumbnailDestination)
-		return
+		return err
 	}
 
 	playbuttonOverlayBuffer, err := assets.ReadFile("assets/playbutton.png")
 	playbuttonOverlayImage, err := vips.NewImageFromBuffer(playbuttonOverlayBuffer)
 	if err != nil {
 		log.Println("Could not open play button overlay asset")
-		return
+		return err
 	}
 
 	// Overlay play button in the middle of thumbnail picture
 	err = image.Composite(playbuttonOverlayImage, vips.BlendModeOver, (config.media.thumbnailWidth/2)-(playbuttonOverlayImage.Width()/2), (config.media.thumbnailHeight/2)-(playbuttonOverlayImage.Height()/2))
 	if err != nil {
 		log.Println("Could not composite play button overlay on top of:", thumbnailDestination)
-		return
+		return err
 	}
 
 	ep := vips.NewDefaultJPEGExportParams()
 	imageBytes, _, err := image.Export(ep)
 	if err != nil {
 		log.Println("Could not export video thumnail:", thumbnailDestination)
-		return
+		return err
 	}
 
 	err = os.WriteFile(thumbnailDestination, imageBytes, config.files.fileMode)
 	if err != nil {
 		log.Println("Could not write video thumnail:", thumbnailDestination)
-		return
+		return err
 	}
+
+	return nil
 }
 
-func createOriginal(source string, destination string) {
+func createOriginal(source string, destination string) error {
 	// TODO add option to copy
-	symlinkFile(source, destination)
+	return symlinkFile(source, destination)
 }
 
 func getGalleryFilenames(sourceFilename string, config configuration) (thumbnailFilename string, fullsizeFilename string) {
@@ -872,6 +878,15 @@ func getGalleryFilenames(sourceFilename string, config configuration) (thumbnail
 	return
 }
 
+func cleanWipFiles(sourceFilepath string) {
+	wipJobMutex.Lock()
+	os.Remove(wipJobs[sourceFilepath].thumbnailFilepath)
+	os.Remove(wipJobs[sourceFilepath].fullsizeFilepath)
+	os.Remove(wipJobs[sourceFilepath].originalFilepath)
+	delete(wipJobs, sourceFilepath)
+	wipJobMutex.Unlock()
+}
+
 // transformFile takes a transformation job (an image or video) and creates a thumbnail, full-size
 // image and a copy of the original
 func transformFile(thisJob transformationJob, progressBar *pb.ProgressBar, config configuration) {
@@ -884,14 +899,29 @@ func transformFile(thisJob transformationJob, progressBar *pb.ProgressBar, confi
 
 	// Do the actual transformation and increment the progress bar
 	if isImageFile(thisJob.filename) {
-		transformImage(thisJob.sourceFilepath, thisJob.fullsizeFilepath, thisJob.thumbnailFilepath, config)
+		err := transformImage(thisJob.sourceFilepath, thisJob.fullsizeFilepath, thisJob.thumbnailFilepath, config)
+		if err != nil {
+			cleanWipFiles(thisJob.sourceFilepath)
+			progressBar.Increment()
+			return
+		}
 	} else if isVideoFile(thisJob.filename) {
-		transformVideo(thisJob.sourceFilepath, thisJob.fullsizeFilepath, thisJob.thumbnailFilepath, config)
+		err := transformVideo(thisJob.sourceFilepath, thisJob.fullsizeFilepath, thisJob.thumbnailFilepath, config)
+		if err != nil {
+			cleanWipFiles(thisJob.sourceFilepath)
+			progressBar.Increment()
+			return
+		}
 	} else {
 		log.Println("could not infer whether file is image or video(2):", thisJob.sourceFilepath)
 		exit(1)
 	}
-	createOriginal(thisJob.sourceFilepath, thisJob.originalFilepath)
+	err := createOriginal(thisJob.sourceFilepath, thisJob.originalFilepath)
+	if err != nil {
+		cleanWipFiles(thisJob.sourceFilepath)
+		progressBar.Increment()
+		return
+	}
 	progressBar.Increment()
 
 	wipJobMutex.Lock()
@@ -905,6 +935,7 @@ func transformationWorker(thisDirectoryWG *sync.WaitGroup, thisDirectoryJobs cha
 	defer thisDirectoryWG.Done()
 	for thisJob := range thisDirectoryJobs {
 		transformFile(thisJob, progressBar, config)
+		runtime.GC()
 	}
 }
 
@@ -1029,6 +1060,7 @@ func main() {
 		DryRun   bool   `arg:"--dry-run" help:"dry run; don't change anything, just print what would be done"`
 		CleanUp  bool   `arg:"-c,--cleanup" help:"cleanup, delete files and directories in gallery which don't exist in source"`
 		NoVideos bool   `arg:"--no-videos" help:"ignore videos, only include images"`
+		Logfile  string `arg:"-l,--log" help:"recommended: log file to save errors and failed filenames to instead of stdout"`
 	}
 	// TODO implement verbose
 	// TODO implement logging into a file
@@ -1039,14 +1071,30 @@ func main() {
 	// Validate source and gallery arguments, make paths absolute
 	args.Source, args.Gallery = validateSourceAndGallery(args.Source, args.Gallery)
 
+	fmt.Println("Creating gallery...")
+
 	// Initialize configuration (assets, directories, file types)
 	config := initializeConfig()
 
-	log.Println("Creating gallery...")
-	log.Println("Source:", args.Source)
-	log.Println("Gallery:", args.Gallery)
-	log.Println()
-	log.Println("Finding all media files...")
+	// Open log file if parameter provided
+	if args.Logfile != "" {
+		fmt.Println("Logfile:", args.Logfile)
+		logHandle, err := os.OpenFile(args.Logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, config.files.fileMode)
+		if err != nil {
+			fmt.Println("error opening logfile:", args.Logfile)
+			exit(1)
+		}
+		defer logHandle.Close()
+		log.SetOutput(logHandle)
+		log.Println("Creating gallery...")
+		log.Println("Source:", args.Source)
+		log.Println("Gallery:", args.Gallery)
+	}
+
+	fmt.Println("Source:", args.Source)
+	fmt.Println("Gallery:", args.Gallery)
+	fmt.Println()
+	fmt.Println("Finding all media files...")
 
 	// Creating a directory struct of both source as well as gallery directories
 	source := createDirectoryTree(args.Source, "", args.NoVideos)
@@ -1060,7 +1108,7 @@ func main() {
 
 	// If there are changes, create the gallery
 	if changes > 0 {
-		log.Println(changes, "files to update")
+		fmt.Println(changes, "files to update")
 		if !exists(gallery.absPath) {
 			createDirectory(gallery.absPath, args.DryRun, config.files.directoryMode)
 		}
