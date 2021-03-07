@@ -46,10 +46,12 @@ type configuration struct {
 		videoExtension string
 	}
 	assets struct {
-		htmlFile   string
-		backIcon   string
-		folderIcon string
-		playIcon   string
+		assetsDir    string
+		htmlFile     string
+		backIcon     string
+		folderIcon   string
+		playIcon     string
+		htmlTemplate string
 	}
 	media struct {
 		thumbnailWidth    int
@@ -71,10 +73,12 @@ func initializeConfig() (config configuration) {
 	config.files.imageExtension = ".jpg"
 	config.files.videoExtension = ".mp4"
 
+	config.assets.assetsDir = "assets"
 	config.assets.htmlFile = "index.html"
 	config.assets.backIcon = "back.png"
 	config.assets.folderIcon = "folder.png"
 	config.assets.playIcon = "playbutton.png"
+	config.assets.htmlTemplate = "gallery.gohtml"
 
 	config.media.thumbnailWidth = 280
 	config.media.thumbnailHeight = 210
@@ -209,7 +213,7 @@ func validateSourceAndGallery(source string, gallery string) (string, string) {
 	if !isDirectory(gallery) {
 		// Ok, gallery isn't a directory but check whether the parent directory is
 		// and we're supposed to create gallery there during runtime
-		galleryParent, err := filepath.Abs(gallery + "/../")
+		galleryParent, err := filepath.Abs(filepath.Join(gallery, "/../"))
 		if err != nil {
 			log.Println("error:", err.Error())
 			exit(1)
@@ -580,8 +584,7 @@ func copyFile(source string, destination string) {
 
 // copyRootAssets copies all the embedded assets to the root directory of the gallery
 func copyRootAssets(gallery directory, dryRun bool, config configuration) {
-	// TODO replace all hard-coded filesystem paths
-	assetDirectoryListing, err := assets.ReadDir("assets")
+	assetDirectoryListing, err := assets.ReadDir(config.assets.assetsDir)
 	if err != nil {
 		log.Println("couldn't open embedded assets:", err.Error())
 		exit(1)
@@ -596,14 +599,14 @@ func copyRootAssets(gallery directory, dryRun bool, config configuration) {
 				if dryRun {
 					log.Println("Would copy JS/CSS file", entry.Name(), "to", gallery.absPath)
 				} else {
-					filebuffer, err := assets.ReadFile("assets/" + entry.Name())
+					filebuffer, err := assets.ReadFile(filepath.Join(config.assets.assetsDir, entry.Name()))
 					if err != nil {
 						log.Println("couldn't open embedded asset:", entry.Name(), ":", err.Error())
 						exit(1)
 					}
-					err = os.WriteFile(gallery.absPath+"/"+entry.Name(), filebuffer, config.files.fileMode)
+					err = os.WriteFile(filepath.Join(gallery.absPath, entry.Name()), filebuffer, config.files.fileMode)
 					if err != nil {
-						log.Println("couldn't write embedded asset:", gallery.absPath+"/"+entry.Name(), ":", err.Error())
+						log.Println("couldn't write embedded asset:", filepath.Join(gallery.absPath, entry.Name()), ":", err.Error())
 						exit(1)
 					}
 				}
@@ -615,14 +618,14 @@ func copyRootAssets(gallery directory, dryRun bool, config configuration) {
 				if dryRun {
 					log.Println("Would copy icon", entry.Name(), "to", gallery.absPath)
 				} else {
-					filebuffer, err := assets.ReadFile("assets/" + entry.Name())
+					filebuffer, err := assets.ReadFile(filepath.Join(config.assets.assetsDir, entry.Name()))
 					if err != nil {
 						log.Println("couldn't open embedded asset:", entry.Name(), ":", err.Error())
 						exit(1)
 					}
-					err = os.WriteFile(gallery.absPath+"/"+entry.Name(), filebuffer, config.files.fileMode)
+					err = os.WriteFile(filepath.Join(gallery.absPath, entry.Name()), filebuffer, config.files.fileMode)
 					if err != nil {
-						log.Println("couldn't write embedded asset:", gallery.absPath+"/"+entry.Name(), ":", err.Error())
+						log.Println("couldn't write embedded asset:", filepath.Join(gallery.absPath, entry.Name()), ":", err.Error())
 						exit(1)
 					}
 				}
@@ -666,7 +669,7 @@ func createHTML(depth int, source directory, galleryDirectory string, dryRun boo
 		rootEscape = rootEscape + "../"
 	}
 
-	assetDirectoryListing, err := assets.ReadDir("assets")
+	assetDirectoryListing, err := assets.ReadDir(config.assets.assetsDir)
 	if err != nil {
 		log.Println("couldn't list embedded assets:", err.Error())
 		exit(1)
@@ -698,7 +701,7 @@ func createHTML(depth int, source directory, galleryDirectory string, dryRun boo
 	if dryRun {
 		log.Println("Would create HTML file:", htmlFilePath)
 	} else {
-		cookedTemplate, err := template.ParseFS(assets, "assets/gallery.gohtml")
+		cookedTemplate, err := template.ParseFS(assets, filepath.Join(config.assets.assetsDir, config.assets.htmlTemplate))
 		if err != nil {
 			log.Println("couldn't parse HTML template", htmlFilePath, ":", err.Error())
 			exit(1)
@@ -842,7 +845,7 @@ func transformVideo(source string, fullsizeDestination string, thumbnailDestinat
 		return err
 	}
 
-	playbuttonOverlayBuffer, err := assets.ReadFile("assets/playbutton.png")
+	playbuttonOverlayBuffer, err := assets.ReadFile(filepath.Join(config.assets.assetsDir, config.assets.playIcon))
 	playbuttonOverlayImage, err := vips.NewImageFromBuffer(playbuttonOverlayBuffer)
 	if err != nil {
 		log.Println("Could not open play button overlay asset")
@@ -1005,7 +1008,10 @@ func cleanDirectory(gallery directory, dryRun bool) {
 			if dryRun {
 				log.Println("would clean up file:", gallery.absPath, file.name)
 			} else {
-				// TODO cleanup functionality
+				err := os.RemoveAll(file.absPath)
+				if err != nil {
+					log.Println("couldn't delete stale gallery file", file.absPath, ":", err.Error())
+				}
 			}
 		}
 	}
@@ -1019,6 +1025,8 @@ func cleanDirectory(gallery directory, dryRun bool) {
 			// Implement logic to mark non-existent gallery directories
 			if dryRun {
 				log.Println("would clean up dir:", gallery.absPath, dir.name)
+				// } else {
+
 			}
 		}
 	}
@@ -1075,7 +1083,7 @@ func main() {
 		Logfile  string `arg:"-l,--log" help:"recommended: log file to save errors and failed filenames to instead of stdout"`
 	}
 	// TODO implement verbose
-	// TODO implement logging into a file
+	// TODO fix stdout vs logging output throughout
 
 	// Parse command-line arguments
 	arg.MustParse(&args)
