@@ -1083,8 +1083,6 @@ func main() {
 	// Validate source and gallery arguments, make paths absolute
 	args.Source, args.Gallery = validateSourceAndGallery(args.Source, args.Gallery)
 
-	fmt.Println("Creating gallery...")
-
 	// Initialize configuration (assets, directories, file types)
 	config := initializeConfig()
 
@@ -1098,14 +1096,10 @@ func main() {
 		}
 		defer logHandle.Close()
 		log.SetOutput(logHandle)
-		log.Println("Creating gallery...")
-		log.Println("Source:", args.Source)
-		log.Println("Gallery:", args.Gallery)
+		log.Println("Creating gallery, source:", args.Source, "gallery:", args.Gallery)
 	}
 
-	fmt.Println("Source:", args.Source)
-	fmt.Println("Gallery:", args.Gallery)
-	fmt.Println()
+	fmt.Println("Creating gallery, source:", args.Source, "gallery:", args.Gallery)
 	fmt.Println("Finding all media files...")
 
 	// Creating a directory struct of both source as well as gallery directories
@@ -1120,7 +1114,7 @@ func main() {
 
 	// If there are changes, create the gallery
 	if changes > 0 {
-		fmt.Println(changes, "files to update")
+		log.Println(changes, "files to update")
 		if !exists(gallery.absPath) {
 			createDirectory(gallery.absPath, args.DryRun, config.files.directoryMode)
 		}
