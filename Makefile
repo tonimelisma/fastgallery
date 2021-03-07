@@ -1,13 +1,20 @@
+ifndef GO
+GO := go
+endif
+
 all: deps test build
 
 deps:
-	go get ./...
+	$(GO) get ./...
 
 test:
-	go test -v ./...
+	$(GO) test -v ./...
 
 build:
-	go build -o bin/fastgallery cmd/fastgallery/main.go
+	$(GO) build -o bin/fastgallery cmd/fastgallery/main.go
 
 clean:
 	rm bin/fastgallery
+
+install:
+	cp bin/fastgallery ~/.local/bin

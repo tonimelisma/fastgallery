@@ -800,26 +800,38 @@ func transformImage(source string, fullsizeDestination string, thumbnailDestinat
 
 func transformVideo(source string, fullsizeDestination string, thumbnailDestination string, config configuration) error {
 	// Resize full-size video
-	ffmpegCommand := exec.Command("ffmpeg", "-y", "-i", source, "-pix_fmt", "yuv420p", "-vcodec", "libx264", "-acodec", "aac", "-movflags", "faststart", "-r", "24", "-vf", "scale='min("+strconv.Itoa(config.media.videoMaxSize)+",iw)':'min("+strconv.Itoa(config.media.videoMaxSize)+",ih)':force_original_aspect_ratio=decrease", "-crf", "28", "-loglevel", "fatal", fullsizeDestination)
-	// TODO capture stdout/err to bytes buffer instead
-	ffmpegCommand.Stdout = os.Stdout
-	ffmpegCommand.Stderr = os.Stderr
+	ffmpegCommand := exec.Command("ffmpeg", "-y", "-i", source, "-pix_fmt", "yuv420p", "-vcodec", "libx264", "-acodec", "aac", "-movflags", "faststart", "-r", "24", "-vf", "scale='min("+strconv.Itoa(config.media.videoMaxSize)+",iw)':'min("+strconv.Itoa(config.media.videoMaxSize)+",ih)':force_original_aspect_ratio=decrease:force_divisible_by=2", "-crf", "28", "-loglevel", "error", fullsizeDestination)
 
-	err := ffmpegCommand.Run()
+	commandOutput, err := ffmpegCommand.CombinedOutput()
 	if err != nil {
-		log.Println("Could not create full-size video transcode:", source)
+		log.Println("Could not get ffmpeg fullsize output:", err)
+	}
+
+	if len(commandOutput) > 0 {
+		log.Println("ffmpeg output for fullsize operation:", source)
+		log.Println(ffmpegCommand.Args)
+		log.Println(string(commandOutput))
+	}
+
+	if err != nil {
 		return err
 	}
 
 	// Create thumbnail image of video
-	ffmpegCommand2 := exec.Command("ffmpeg", "-y", "-i", source, "-ss", "00:00:00", "-vframes", "1", "-vf", fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d", config.media.thumbnailWidth, config.media.thumbnailHeight, config.media.thumbnailWidth, config.media.thumbnailHeight), "-loglevel", "fatal", thumbnailDestination)
-	// TODO capture stdout/err to bytes buffer instead
-	ffmpegCommand2.Stdout = os.Stdout
-	ffmpegCommand2.Stderr = os.Stderr
+	ffmpegCommand2 := exec.Command("ffmpeg", "-y", "-i", source, "-ss", "00:00:00", "-vframes", "1", "-vf", fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=increase:force_divisible_by=2,crop=%d:%d", config.media.thumbnailWidth, config.media.thumbnailHeight, config.media.thumbnailWidth, config.media.thumbnailHeight), "-loglevel", "error", thumbnailDestination)
 
-	err = ffmpegCommand2.Run()
+	commandOutput2, err := ffmpegCommand2.CombinedOutput()
 	if err != nil {
-		log.Println("Could not create thumbnail of video:", source)
+		log.Println("Could not get ffmpeg thumbnail output:", err)
+	}
+
+	if len(commandOutput2) > 0 {
+		log.Println("ffmpeg output for thumbnail operation:", source)
+		log.Println(ffmpegCommand2.Args)
+		log.Println(string(commandOutput2))
+	}
+
+	if err != nil {
 		return err
 	}
 
