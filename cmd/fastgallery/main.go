@@ -401,11 +401,25 @@ func reservedDirectory(path string, config configuration) bool {
 	return false
 }
 
+// reservedFile takes a path and checks whether it's a reserved file,
+// such as one of our asset files
+func reservedFile(path string, config configuration) bool {
+	if path == config.assets.backIcon {
+		return true
+	}
+
+	if path == config.assets.folderIcon {
+		return true
+	}
+
+	return false
+}
+
 // hasDirectoryChanged checks whether the gallery directory has changed and thus
 // the HTML file needs to be updated. Could be due to:
 // At least one non-existent source file or directory (will be created in gallery)
 // We're doing a cleanup, and at least one non-existent gallery file or directory (will be removed from gallery)
-func hasDirectoryChanged(source directory, gallery directory, cleanUp bool) bool {
+func hasDirectoryChanged(source directory, gallery directory, cleanUp bool, config configuration) bool {
 	for _, sourceFile := range source.files {
 		if !sourceFile.exists {
 			return true
@@ -430,6 +444,10 @@ func hasDirectoryChanged(source directory, gallery directory, cleanUp bool) bool
 				return true
 			}
 		}
+	}
+
+	if _, err := os.Stat(filepath.Join(gallery.absPath, config.assets.htmlFile)); os.IsNotExist(err) {
+		return true
 	}
 
 	return false
@@ -1001,32 +1019,41 @@ func createMedia(source directory, gallerySubdirectory string, dryRun bool, conf
 	thisDirectoryWG.Wait()
 }
 
+// cleanUp cleans stale files and directories from the gallery recursively
+func cleanUp(gallery directory, dryRun bool, config configuration) {
+	cleanDirectory(gallery, dryRun, config)
+
+	for _, subdir := range gallery.subdirectories {
+		cleanUp(subdir, dryRun, config)
+	}
+}
+
 // Clean gallery directory of any directories or files which don't exist in source
-func cleanDirectory(gallery directory, dryRun bool) {
+func cleanDirectory(gallery directory, dryRun bool, config configuration) {
 	for _, file := range gallery.files {
-		if !file.exists {
+		if !file.exists && !reservedFile(file.name, config) {
 			if dryRun {
-				log.Println("would clean up file:", gallery.absPath, file.name)
+				log.Println("would clean up file:", filepath.Join(gallery.absPath, file.name))
 			} else {
-				err := os.RemoveAll(file.absPath)
+				err := os.RemoveAll(filepath.Join(gallery.absPath, file.name))
 				if err != nil {
-					log.Println("couldn't delete stale gallery file", file.absPath, ":", err.Error())
+					log.Println("couldn't delete stale gallery file", filepath.Join(gallery.absPath, file.name), ":", err.Error())
 				}
 			}
 		}
 	}
 
 	for _, dir := range gallery.subdirectories {
-		if !dir.exists {
-			// TODO cleanup functionality, reserved directories
-			// TODO recurse in the wrong order, go deep first and start from leafs
-			// TODO directory bug - only after files are deleted we know which directories are empty
-			// What about reserved directories for thumbnails, pictures and originals?
-			// Implement logic to mark non-existent gallery directories
+		if !reservedDirectory(dir.name, config) && !dir.exists {
 			if dryRun {
-				log.Println("would clean up dir:", gallery.absPath, dir.name)
+				log.Println("would clean up dir:", filepath.Join(gallery.absPath, dir.name))
 				// } else {
 
+			} else {
+				err := os.RemoveAll(filepath.Join(gallery.absPath, dir.name))
+				if err != nil {
+					log.Println("couldn't delete stale gallery directory", filepath.Join(gallery.absPath, dir.name), ":", err.Error())
+				}
 			}
 		}
 	}
@@ -1035,12 +1062,9 @@ func cleanDirectory(gallery directory, dryRun bool) {
 func createGallery(depth int, source directory, gallery directory, dryRun bool, cleanUp bool, config configuration, progressBar *pb.ProgressBar) {
 	galleryDirectory := filepath.Join(gallery.absPath, source.relPath)
 
-	if hasDirectoryChanged(source, gallery, cleanUp) {
+	if hasDirectoryChanged(source, gallery, cleanUp, config) {
 		createMedia(source, galleryDirectory, dryRun, config, progressBar)
 		createHTML(depth, source, galleryDirectory, dryRun, config)
-		if cleanUp {
-			cleanDirectory(gallery, dryRun)
-		}
 	}
 
 	for _, subdir := range source.subdirectories {
@@ -1156,5 +1180,13 @@ func main() {
 		log.Println("Gallery updated!")
 	} else {
 		log.Println("Gallery already up to date!")
+	}
+
+	// TODO create html recursion function here
+
+	if args.CleanUp {
+		log.Println("Cleaning up...")
+		cleanUp(gallery, args.DryRun, config)
+		log.Println("Gallery clean!")
 	}
 }
