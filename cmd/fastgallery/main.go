@@ -639,14 +639,16 @@ func copyRootAssets(gallery directory, dryRun bool, config configuration) {
 				if dryRun {
 					log.Println("Would copy JS/CSS file", entry.Name(), "to", gallery.absPath)
 				} else {
-					filebuffer, err := assets.ReadFile(filepath.Join(config.assets.assetsDir, entry.Name()))
+					assetPath := filepath.Join(config.assets.assetsDir, entry.Name())
+					filebuffer, err := assets.ReadFile(assetPath)
 					if err != nil {
-						log.Println("couldn't open embedded asset:", entry.Name(), ":", err.Error())
+						log.Println("couldn't open embedded asset:", assetPath, ":", err.Error())
 						exit(1)
 					}
-					err = os.WriteFile(filepath.Join(gallery.absPath, entry.Name()), filebuffer, config.files.fileMode)
+					targetPath := filepath.Join(gallery.absPath, entry.Name())
+					err = os.WriteFile(targetPath, filebuffer, config.files.fileMode)
 					if err != nil {
-						log.Println("couldn't write embedded asset:", filepath.Join(gallery.absPath, entry.Name()), ":", err.Error())
+						log.Println("couldn't write embedded asset:", targetPath, ":", err.Error())
 						exit(1)
 					}
 				}
@@ -658,14 +660,16 @@ func copyRootAssets(gallery directory, dryRun bool, config configuration) {
 				if dryRun {
 					log.Println("Would copy icon", entry.Name(), "to", gallery.absPath)
 				} else {
-					filebuffer, err := assets.ReadFile(filepath.Join(config.assets.assetsDir, entry.Name()))
+					assetPath := filepath.Join(config.assets.assetsDir, entry.Name())
+					filebuffer, err := assets.ReadFile(assetPath)
 					if err != nil {
-						log.Println("couldn't open embedded asset:", entry.Name(), ":", err.Error())
+						log.Println("couldn't open embedded asset:", assetPath, ":", err.Error())
 						exit(1)
 					}
-					err = os.WriteFile(filepath.Join(gallery.absPath, entry.Name()), filebuffer, config.files.fileMode)
+					targetPath := filepath.Join(gallery.absPath, entry.Name())
+					err = os.WriteFile(targetPath, filebuffer, config.files.fileMode)
 					if err != nil {
-						log.Println("couldn't write embedded asset:", filepath.Join(gallery.absPath, entry.Name()), ":", err.Error())
+						log.Println("couldn't write embedded asset:", targetPath, ":", err.Error())
 						exit(1)
 					}
 				}
@@ -741,9 +745,10 @@ func createHTML(depth int, source directory, galleryDirectory string, dryRun boo
 	if dryRun {
 		log.Println("Would create HTML file:", htmlFilePath)
 	} else {
-		cookedTemplate, err := template.ParseFS(assets, filepath.Join(config.assets.assetsDir, config.assets.htmlTemplate))
+		templatePath := filepath.Join(config.assets.assetsDir, config.assets.htmlTemplate)
+		cookedTemplate, err := template.ParseFS(assets, templatePath)
 		if err != nil {
-			log.Println("couldn't parse HTML template", htmlFilePath, ":", err.Error())
+			log.Println("couldn't parse HTML template", templatePath, ":", err.Error())
 			exit(1)
 		}
 
@@ -887,7 +892,8 @@ func transformVideo(source string, fullsizeDestination string, thumbnailDestinat
 		return err
 	}
 
-	playbuttonOverlayBuffer, err := assets.ReadFile(filepath.Join(config.assets.assetsDir, config.assets.playIcon))
+	playbuttonAssetPath := filepath.Join(config.assets.assetsDir, config.assets.playIcon)
+	playbuttonOverlayBuffer, err := assets.ReadFile(playbuttonAssetPath)
 	playbuttonOverlayImage, err := vips.NewImageFromBuffer(playbuttonOverlayBuffer)
 	if err != nil {
 		log.Println("Could not open play button overlay asset")
@@ -1058,28 +1064,30 @@ func cleanUp(gallery directory, dryRun bool, config configuration) {
 func cleanDirectory(gallery directory, dryRun bool, config configuration) {
 	for _, file := range gallery.files {
 		if !file.exists && !reservedFile(file.name, config) {
+			stalePath := filepath.Join(gallery.absPath, file.name)
 			if dryRun {
-				log.Println("would clean up file:", filepath.Join(gallery.absPath, file.name))
+				log.Println("would clean up file:", stalePath)
 			} else {
-				err := os.RemoveAll(filepath.Join(gallery.absPath, file.name))
+				err := os.RemoveAll(stalePath)
 				if err != nil {
-					log.Println("couldn't delete stale gallery file", filepath.Join(gallery.absPath, file.name), ":", err.Error())
+					log.Println("couldn't delete stale gallery file", stalePath, ":", err.Error())
 				}
-				log.Println("Cleaned up file:", filepath.Join(gallery.absPath, file.name))
+				log.Println("Cleaned up file:", stalePath)
 			}
 		}
 	}
 
 	for _, dir := range gallery.subdirectories {
 		if !reservedDirectory(dir.name, config) && !dir.exists {
+			stalePath := filepath.Join(gallery.absPath, dir.name)
 			if dryRun {
-				log.Println("would clean up dir:", filepath.Join(gallery.absPath, dir.name))
+				log.Println("would clean up dir:", stalePath)
 			} else {
-				err := os.RemoveAll(filepath.Join(gallery.absPath, dir.name))
+				err := os.RemoveAll(stalePath)
 				if err != nil {
-					log.Println("couldn't delete stale gallery directory", filepath.Join(gallery.absPath, dir.name), ":", err.Error())
+					log.Println("couldn't delete stale gallery directory", stalePath, ":", err.Error())
 				}
-				log.Println("Cleaned up directory:", filepath.Join(gallery.absPath, dir.name))
+				log.Println("Cleaned up directory:", stalePath)
 			}
 		}
 	}
