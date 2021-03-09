@@ -334,7 +334,7 @@ func TestCreateDirectoryTree(t *testing.T) {
 
 	compareDirectoryTrees(&source, &gallery, myConfig)
 
-	changes := countChanges(source)
+	changes := countChanges(source, myConfig)
 
 	assert.EqualValues(t, 2, changes)
 }

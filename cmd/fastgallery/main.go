@@ -434,7 +434,7 @@ func hasDirectoryChanged(source directory, gallery directory, cleanUp bool, conf
 
 	if cleanUp {
 		for _, galleryFile := range gallery.files {
-			if !galleryFile.exists {
+			if !reservedFile(galleryFile.name, config) && !galleryFile.exists {
 				return true
 			}
 		}
@@ -446,7 +446,8 @@ func hasDirectoryChanged(source directory, gallery directory, cleanUp bool, conf
 		}
 	}
 
-	if _, err := os.Stat(filepath.Join(gallery.absPath, config.assets.htmlFile)); os.IsNotExist(err) {
+	htmlPath := filepath.Join(gallery.absPath, source.relPath, config.assets.htmlFile)
+	if _, err := os.Stat(htmlPath); os.IsNotExist(err) {
 		return true
 	}
 
@@ -523,19 +524,36 @@ func compareDirectoryTrees(source *directory, gallery *directory, config configu
 	}
 }
 
-func countChanges(source directory) (outputChanges int) {
+func countChanges(source directory, config configuration) (outputChanges int) {
 	outputChanges = 0
 	for _, file := range source.files {
-		if !file.exists {
+		if !file.exists && !reservedFile(file.name, config) {
 			outputChanges++
 		}
 	}
 
 	for _, dir := range source.subdirectories {
-		outputChanges = outputChanges + countChanges(dir)
+		outputChanges = outputChanges + countChanges(dir, config)
 	}
 
 	return outputChanges
+}
+
+func findMissingHTMLFiles(gallery directory, config configuration) bool {
+	htmlPath := filepath.Join(gallery.absPath, config.assets.htmlFile)
+	if _, err := os.Stat(htmlPath); os.IsNotExist(err) {
+		return true
+	}
+
+	for _, dir := range gallery.subdirectories {
+		if !reservedDirectory(dir.name, config) {
+			if findMissingHTMLFiles(dir, config) {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 func createDirectory(destination string, dryRun bool, dirMode os.FileMode) {
@@ -548,6 +566,8 @@ func createDirectory(destination string, dryRun bool, dirMode os.FileMode) {
 				log.Println("couldn't create directory", destination, err.Error())
 				exit(1)
 			}
+
+			log.Println("Created directory:", destination)
 		}
 	}
 }
@@ -609,6 +629,8 @@ func copyRootAssets(gallery directory, dryRun bool, config configuration) {
 	}
 
 	// Iterate through all the embedded assets
+	// TODO only update assets if they're not up to date
+	// TODO then add logging for created assets
 	for _, entry := range assetDirectoryListing {
 		if !entry.IsDir() {
 			switch filepath.Ext(strings.ToLower(entry.Name())) {
@@ -739,6 +761,8 @@ func createHTML(depth int, source directory, galleryDirectory string, dryRun boo
 
 		htmlFileHandle.Sync()
 		htmlFileHandle.Close()
+
+		log.Println("Created HTML file:", htmlFilePath)
 	}
 }
 
@@ -960,6 +984,8 @@ func transformFile(thisJob transformationJob, progressBar *pb.ProgressBar, confi
 	wipJobMutex.Lock()
 	delete(wipJobs, thisJob.sourceFilepath)
 	wipJobMutex.Unlock()
+
+	log.Println("Converted media file:", thisJob.sourceFilepath)
 }
 
 // This is the main concurrent goroutine that takes care of the parallelisation. A big bunch of them
@@ -1039,6 +1065,7 @@ func cleanDirectory(gallery directory, dryRun bool, config configuration) {
 				if err != nil {
 					log.Println("couldn't delete stale gallery file", filepath.Join(gallery.absPath, file.name), ":", err.Error())
 				}
+				log.Println("Cleaned up file:", filepath.Join(gallery.absPath, file.name))
 			}
 		}
 	}
@@ -1047,24 +1074,35 @@ func cleanDirectory(gallery directory, dryRun bool, config configuration) {
 		if !reservedDirectory(dir.name, config) && !dir.exists {
 			if dryRun {
 				log.Println("would clean up dir:", filepath.Join(gallery.absPath, dir.name))
-				// } else {
-
 			} else {
 				err := os.RemoveAll(filepath.Join(gallery.absPath, dir.name))
 				if err != nil {
 					log.Println("couldn't delete stale gallery directory", filepath.Join(gallery.absPath, dir.name), ":", err.Error())
 				}
+				log.Println("Cleaned up directory:", filepath.Join(gallery.absPath, dir.name))
 			}
 		}
 	}
 }
 
-func createGallery(depth int, source directory, gallery directory, dryRun bool, cleanUp bool, config configuration, progressBar *pb.ProgressBar) {
+func updateHTMLFiles(depth int, source directory, gallery directory, dryRun bool, cleanUp bool, config configuration) {
+	galleryDirectory := filepath.Join(gallery.absPath, source.relPath)
+	if hasDirectoryChanged(source, gallery, cleanUp, config) {
+		createHTML(depth, source, galleryDirectory, dryRun, config)
+	}
+
+	for _, subdir := range source.subdirectories {
+		updateHTMLFiles(depth+1, subdir, gallery, dryRun, cleanUp, config)
+	}
+}
+
+func updateMediaFiles(depth int, source directory, gallery directory, dryRun bool, cleanUp bool, config configuration, progressBar *pb.ProgressBar) {
+	// TODO generalize directory recursion algorithm for media creation, HTML creation and clean-ups
+	// TODO make generalized function recurse simultaneously source and gallery structs
 	galleryDirectory := filepath.Join(gallery.absPath, source.relPath)
 
 	if hasDirectoryChanged(source, gallery, cleanUp, config) {
 		createMedia(source, galleryDirectory, dryRun, config, progressBar)
-		createHTML(depth, source, galleryDirectory, dryRun, config)
 	}
 
 	for _, subdir := range source.subdirectories {
@@ -1073,7 +1111,7 @@ func createGallery(depth int, source directory, gallery directory, dryRun bool, 
 		createDirectory(gallerySubdir, dryRun, config.files.directoryMode)
 
 		// Recurse
-		createGallery(depth+1, subdir, gallery, dryRun, cleanUp, config, progressBar)
+		updateMediaFiles(depth+1, subdir, gallery, dryRun, cleanUp, config, progressBar)
 	}
 }
 
@@ -1128,7 +1166,6 @@ func main() {
 		}
 		defer logHandle.Close()
 		log.SetOutput(logHandle)
-		log.Println("Creating gallery, source:", args.Source, "gallery:", args.Gallery)
 	}
 
 	fmt.Println("Creating gallery, source:", args.Source, "gallery:", args.Gallery)
@@ -1141,19 +1178,21 @@ func main() {
 	// Check which source media exists in gallery
 	compareDirectoryTrees(&source, &gallery, config)
 
-	// Count number of source files which don't exist in gallery
-	changes := countChanges(source)
+	// Copy updated web assets (JS, CSS, icons, etc) into gallery root
+	copyRootAssets(gallery, args.DryRun, config)
 
-	// If there are changes, create the gallery
-	if changes > 0 {
-		log.Println(changes, "files to update")
+	// If there are changes in the source, update the media files
+	newSourceFiles := countChanges(source, config)
+
+	if newSourceFiles > 0 {
+		log.Println("Updating", newSourceFiles, "media files.")
 		if !exists(gallery.absPath) {
 			createDirectory(gallery.absPath, args.DryRun, config.files.directoryMode)
 		}
 
 		var progressBar *pb.ProgressBar
 		if !args.DryRun {
-			progressBar = pb.StartNew(changes)
+			progressBar = pb.StartNew(newSourceFiles)
 			if args.Verbose {
 				vips.LoggingSettings(nil, vips.LogLevelDebug)
 				vips.Startup(&vips.Config{
@@ -1170,23 +1209,35 @@ func main() {
 		// Handle ctrl-C or other signals
 		setupSignalHandler()
 
-		copyRootAssets(gallery, args.DryRun, config)
-		createGallery(0, source, gallery, args.DryRun, args.CleanUp, config, progressBar)
+		updateMediaFiles(0, source, gallery, args.DryRun, args.CleanUp, config, progressBar)
 
 		if !args.DryRun {
 			progressBar.Finish()
 		}
 
-		log.Println("Gallery updated!")
+		fmt.Println("All media files updated!")
 	} else {
-		log.Println("Gallery already up to date!")
+		fmt.Println("All media files already up to date!")
 	}
 
-	// TODO create html recursion function here
+	// Update HTML index files, if any new source media files, removed gallery media files
+	// or missing HTML files
+	staleGalleryFiles := countChanges(gallery, config)
+	missingHTMLFiles := findMissingHTMLFiles(gallery, config)
 
+	if newSourceFiles > 0 || staleGalleryFiles > 0 || missingHTMLFiles {
+		fmt.Println("Updating HTML files...")
+		updateHTMLFiles(0, source, gallery, args.DryRun, args.CleanUp, config)
+		fmt.Println("All HTML files updated!")
+	} else {
+		fmt.Println("All HTML files already up to date!")
+	}
+
+	// Clean up any removed gallery media files
 	if args.CleanUp {
-		log.Println("Cleaning up...")
+		fmt.Println("Cleaning up gallery...")
+		// TODO restructure cleanUp to check here whether there's stale files, for better output
 		cleanUp(gallery, args.DryRun, config)
-		log.Println("Gallery clean!")
+		fmt.Println("Gallery clean!")
 	}
 }
