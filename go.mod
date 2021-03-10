@@ -5,7 +5,7 @@ go 1.16
 require (
 	github.com/alexflint/go-arg v1.3.0
 	github.com/cheggaaa/pb/v3 v3.0.6
-	github.com/davidbyttow/govips/v2 v2.5.0
+	github.com/davidbyttow/govips/v2 v2.5.1-0.20210222223032-a2b44e929db8
 	github.com/fatih/color v1.10.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mattn/go-runewidth v0.0.10 // indirect

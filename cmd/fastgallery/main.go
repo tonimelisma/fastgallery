@@ -965,14 +965,18 @@ func transformFile(thisJob transformationJob, progressBar *pb.ProgressBar, confi
 		err := transformImage(thisJob.sourceFilepath, thisJob.fullsizeFilepath, thisJob.thumbnailFilepath, config)
 		if err != nil {
 			cleanWipFiles(thisJob.sourceFilepath)
-			progressBar.Increment()
+			if progressBar != nil {
+				progressBar.Increment()
+			}
 			return
 		}
 	} else if isVideoFile(thisJob.filename) {
 		err := transformVideo(thisJob.sourceFilepath, thisJob.fullsizeFilepath, thisJob.thumbnailFilepath, config)
 		if err != nil {
 			cleanWipFiles(thisJob.sourceFilepath)
-			progressBar.Increment()
+			if progressBar != nil {
+				progressBar.Increment()
+			}
 			return
 		}
 	} else {
@@ -982,10 +986,14 @@ func transformFile(thisJob transformationJob, progressBar *pb.ProgressBar, confi
 	err := createOriginal(thisJob.sourceFilepath, thisJob.originalFilepath)
 	if err != nil {
 		cleanWipFiles(thisJob.sourceFilepath)
-		progressBar.Increment()
+		if progressBar != nil {
+			progressBar.Increment()
+		}
 		return
 	}
-	progressBar.Increment()
+	if progressBar != nil {
+		progressBar.Increment()
+	}
 
 	wipJobMutex.Lock()
 	delete(wipJobs, thisJob.sourceFilepath)

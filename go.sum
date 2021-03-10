@@ -12,6 +12,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davidbyttow/govips/v2 v2.5.0 h1:CLSVkXwZYfF7bOR5bZwlUFL1TIWXwyuNF33UrlKscM4=
 github.com/davidbyttow/govips/v2 v2.5.0/go.mod h1:goq38QD8XEMz2aWEeucEZqRxAWsemIN40vbUqfPfTAw=
+github.com/davidbyttow/govips/v2 v2.5.1-0.20210222223032-a2b44e929db8 h1:VqpZsVBlteJKrItEWLqqqUBgWwQFjQUHOAuREaVc+II=
+github.com/davidbyttow/govips/v2 v2.5.1-0.20210222223032-a2b44e929db8/go.mod h1:goq38QD8XEMz2aWEeucEZqRxAWsemIN40vbUqfPfTAw=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
 github.com/fatih/color v1.10.0 h1:s36xzo75JdqLaaWoiEHk767eHiwo0598uUxyfiPkDsg=
 github.com/fatih/color v1.10.0/go.mod h1:ELkj/draVOlAH/xkhN6mQ50Qd0MPOk5AAr3maGEBuJM=

@@ -1,6 +1,8 @@
 package main
 
 import (
+	_ "io"
+	_ "log"
 	"os"
 	"testing"
 	"time"
