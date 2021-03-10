@@ -4,6 +4,8 @@ import (
 	_ "io"
 	_ "log"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -14,7 +16,6 @@ var exitCount = 0
 
 func testExit(ret int) {
 	exitCount = exitCount + 1
-	return
 }
 func TestValidateSourceAndGallery(t *testing.T) {
 	originalExit := exit
@@ -339,6 +340,64 @@ func TestCreateDirectoryTree(t *testing.T) {
 	changes := countChanges(source, myConfig)
 
 	assert.EqualValues(t, 2, changes)
+}
+
+func TestTransformFileAndVideo(t *testing.T) {
+	const videoName = "video.mp4"
+	config := initializeConfig()
+
+	tempDir, err := os.MkdirTemp("", "fastgallery-test-")
+	if err != nil {
+		t.Error("couldn't create temporary directory")
+	}
+	defer os.RemoveAll(tempDir)
+
+	err = os.Mkdir(filepath.Join(tempDir, "source"), 0755)
+	assert.NoError(t, err)
+	err = os.Mkdir(filepath.Join(tempDir, "gallery"), 0755)
+	assert.NoError(t, err)
+	err = os.Mkdir(filepath.Join(tempDir, "gallery", config.files.fullsizeDir), 0755)
+	assert.NoError(t, err)
+	err = os.Mkdir(filepath.Join(tempDir, "gallery", config.files.thumbnailDir), 0755)
+	assert.NoError(t, err)
+	err = os.Mkdir(filepath.Join(tempDir, "gallery", config.files.originalDir), 0755)
+	assert.NoError(t, err)
+
+	cpCommand := exec.Command("cp", "-r", "../../testing/source/"+videoName, filepath.Join(tempDir, "source"))
+	cpCommandOutput, err := cpCommand.CombinedOutput()
+	if len(cpCommandOutput) > 0 {
+		t.Error("cp produced output", string(cpCommandOutput))
+	}
+	if err != nil {
+		t.Error("cp error", err.Error())
+	}
+
+	thumbnailFilename, fullsizeFilename := getGalleryFilenames(videoName, config)
+
+	testJob := transformationJob{
+		filename:          videoName,
+		sourceFilepath:    filepath.Join(tempDir, "source", videoName),
+		thumbnailFilepath: filepath.Join(tempDir, "gallery", config.files.thumbnailDir, thumbnailFilename),
+		fullsizeFilepath:  filepath.Join(tempDir, "gallery", config.files.fullsizeDir, fullsizeFilename),
+		originalFilepath:  filepath.Join(tempDir, "gallery", config.files.originalDir, videoName),
+	}
+
+	transformFile(testJob, nil, config)
+	assert.FileExists(t, testJob.thumbnailFilepath)
+	assert.FileExists(t, testJob.fullsizeFilepath)
+
+	err = os.RemoveAll(testJob.thumbnailFilepath)
+	assert.NoError(t, err)
+	os.RemoveAll(testJob.fullsizeFilepath)
+	assert.NoError(t, err)
+
+	transformVideo(testJob.sourceFilepath, testJob.fullsizeFilepath, testJob.thumbnailFilepath, config)
+	assert.FileExists(t, testJob.thumbnailFilepath)
+	assert.FileExists(t, testJob.fullsizeFilepath)
+
+	err = createOriginal(testJob.sourceFilepath, testJob.originalFilepath)
+	assert.NoError(t, err)
+	assert.FileExists(t, testJob.originalFilepath)
 }
 
 // TODO tests for

@@ -894,6 +894,10 @@ func transformVideo(source string, fullsizeDestination string, thumbnailDestinat
 
 	playbuttonAssetPath := filepath.Join(config.assets.assetsDir, config.assets.playIcon)
 	playbuttonOverlayBuffer, err := assets.ReadFile(playbuttonAssetPath)
+	if err != nil {
+		log.Println("Could not read play button overlay asset")
+		return err
+	}
 	playbuttonOverlayImage, err := vips.NewImageFromBuffer(playbuttonOverlayBuffer)
 	if err != nil {
 		log.Println("Could not open play button overlay asset")

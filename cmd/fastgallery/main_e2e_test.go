@@ -40,12 +40,16 @@ func TestE2E(t *testing.T) {
 	vips.Startup(nil)
 
 	createDirectory(gallery.absPath, false, config.files.directoryMode)
-	updateMediaFiles(0, source, gallery, false, false, config, nil)
+	updateMediaFiles(0, source, gallery, false, true, config, nil)
 
 	// Gallery created, test that files are in order
 	fullsizeFilename1 := filepath.Join(tempDir, "gallery", config.files.fullsizeDir, "panorama.heic")
 	fullsizeFilename1 = stripExtension(fullsizeFilename1) + config.files.imageExtension
 	assert.FileExists(t, fullsizeFilename1)
+
+	fullsizeFilename2 := filepath.Join(tempDir, "gallery", config.files.fullsizeDir, "dog.heic")
+	fullsizeFilename2 = stripExtension(fullsizeFilename2) + config.files.imageExtension
+	assert.FileExists(t, fullsizeFilename2)
 
 	thumbnailFilename1 := filepath.Join(tempDir, "gallery", "subdir", config.files.thumbnailDir, "gate.heic")
 	thumbnailFilename1 = stripExtension(thumbnailFilename1) + config.files.imageExtension
@@ -74,4 +78,12 @@ func TestE2E(t *testing.T) {
 	assert.EqualValues(t, 2, sourceChanges)
 	galleryChanges = countChanges(gallery, config)
 	assert.EqualValues(t, 3, galleryChanges)
+
+	// update without cleanup in gallery
+	updateMediaFiles(0, source, gallery, false, true, config, nil)
+	assert.FileExists(t, fullsizeFilename2)
+
+	// cleanup gallery
+	cleanUp(gallery, false, config)
+	assert.NoFileExists(t, fullsizeFilename2)
 }
