@@ -432,6 +432,7 @@ func hasDirectoryChanged(source directory, gallery directory, cleanUp bool, conf
 		}
 	}
 
+	// TODO recurse gallery simultaneously with source, nil if not available
 	if cleanUp {
 		for _, galleryFile := range gallery.files {
 			if !reservedFile(galleryFile.name, config) && !galleryFile.exists {

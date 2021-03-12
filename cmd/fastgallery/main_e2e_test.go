@@ -58,6 +58,15 @@ func TestE2E(t *testing.T) {
 	originalFilename1 := filepath.Join(tempDir, "gallery", "subdir", "subsubdir", config.files.originalDir, "recorder.heic")
 	assert.FileExists(t, originalFilename1)
 
+	missingHTMLFiles := findMissingHTMLFiles(gallery, config)
+	assert.EqualValues(t, true, missingHTMLFiles)
+
+	// create HTML
+	updateHTMLFiles(0, source, gallery, false, true, config)
+
+	missingHTMLFiles = findMissingHTMLFiles(gallery, config)
+	assert.EqualValues(t, false, missingHTMLFiles)
+
 	// Make changes and re-test
 	sourceFilename1 := filepath.Join(tempDir, "source", "street.jpg")
 	err = os.Chtimes(sourceFilename1, time.Now().Local(), time.Now().Local())
@@ -79,6 +88,8 @@ func TestE2E(t *testing.T) {
 	galleryChanges = countChanges(gallery, config)
 	assert.EqualValues(t, 3, galleryChanges)
 
+
+
 	// update without cleanup in gallery
 	updateMediaFiles(0, source, gallery, false, true, config, nil)
 	assert.FileExists(t, fullsizeFilename2)
@@ -86,4 +97,10 @@ func TestE2E(t *testing.T) {
 	// cleanup gallery
 	cleanUp(gallery, false, config)
 	assert.NoFileExists(t, fullsizeFilename2)
+
+	// update HTML
+	updateHTMLFiles(0, source, gallery, false, true, config)
+
+	missingHTMLFiles = findMissingHTMLFiles(gallery, config)
+	assert.EqualValues(t, false, missingHTMLFiles)
 }
