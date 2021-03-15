@@ -88,7 +88,7 @@ func TestE2E(t *testing.T) {
 	galleryChanges = countChanges(gallery, config)
 	assert.EqualValues(t, 3, galleryChanges)
 
-
+	// Test hasDirectoryChanged and logic to check whether to update html
 
 	// update without cleanup in gallery
 	updateMediaFiles(0, source, gallery, false, true, config, nil)
