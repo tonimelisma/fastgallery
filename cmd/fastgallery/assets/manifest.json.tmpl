@@ -1,0 +1,16 @@
+{
+    "short_name": "{{ .Shortname }}",
+    "start_url": "./",
+    "icons": [
+        {{ range .Icons }}
+            {
+                "src": "{ .Src }",
+                "sizes": "{ .Size }",
+                "type": "{ .Type }"
+            }
+        {{ end }}
+    ],
+    "background_color": "#DDDDDD",
+    "theme_color": "#111111",
+    "display": "minimal-ui"
+}

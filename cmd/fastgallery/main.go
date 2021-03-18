@@ -46,12 +46,14 @@ type configuration struct {
 		videoExtension string
 	}
 	assets struct {
-		assetsDir    string
-		htmlFile     string
-		backIcon     string
-		folderIcon   string
-		playIcon     string
-		htmlTemplate string
+		assetsDir        string
+		htmlFile         string
+		backIcon         string
+		folderIcon       string
+		playIcon         string
+		htmlTemplate     string
+		manifestFile     string
+		manifestTemplate string
 	}
 	media struct {
 		thumbnailWidth    int
@@ -75,10 +77,12 @@ func initializeConfig() (config configuration) {
 
 	config.assets.assetsDir = "assets"
 	config.assets.htmlFile = "index.html"
+	config.assets.htmlTemplate = "gallery.gohtml"
 	config.assets.backIcon = "back.png"
 	config.assets.folderIcon = "folder.png"
 	config.assets.playIcon = "playbutton.png"
-	config.assets.htmlTemplate = "gallery.gohtml"
+	config.assets.manifestFile = "manifest.json"
+	config.assets.manifestTemplate = "manifest.json.tmpl"
 
 	config.media.thumbnailWidth = 280
 	config.media.thumbnailHeight = 210
@@ -121,7 +125,7 @@ type directory struct {
 	exists         bool
 }
 
-// htmlData struct is loaded with all the information required to generate the go template
+// htmlData struct is loaded with all the information required to generate the html from template
 type htmlData struct {
 	Title          string
 	Subdirectories []string
@@ -412,6 +416,10 @@ func reservedFile(path string, config configuration) bool {
 		return true
 	}
 
+	if path == config.assets.manifestFile {
+		return true
+	}
+
 	return false
 }
 
@@ -621,6 +629,15 @@ func copyFile(source string, destination string) {
 }
 */
 
+// createPWAManifest creates a customized manifest.json for a PWA if PWA url is supplied in args
+func createPWAManifest(gallery directory, source directory, dryRun bool, config configuration) {
+	// TODO Fill in data structure, load template and execute it
+	// TODO Iterate over icons, grab size from filename
+	// TODO Add manifest link to HTMLs
+	// TODO Add apple-touch-icon to HTML
+	// TODO register service worker in HTML, add manifest and apple-touch-icon links to head
+}
+
 // copyRootAssets copies all the embedded assets to the root directory of the gallery
 func copyRootAssets(gallery directory, dryRun bool, config configuration) {
 	assetDirectoryListing, err := assets.ReadDir(config.assets.assetsDir)
@@ -636,31 +653,14 @@ func copyRootAssets(gallery directory, dryRun bool, config configuration) {
 		if !entry.IsDir() {
 			switch filepath.Ext(strings.ToLower(entry.Name())) {
 			// Copy all javascript and CSS files
-			case ".js", ".css":
+			case ".js", ".css", ".png":
 				if dryRun {
-					log.Println("Would copy JS/CSS file", entry.Name(), "to", gallery.absPath)
+					log.Println("Would copy JS/CSS/PNG file", entry.Name(), "to", gallery.absPath)
 				} else {
-					assetPath := filepath.Join(config.assets.assetsDir, entry.Name())
-					filebuffer, err := assets.ReadFile(assetPath)
-					if err != nil {
-						log.Println("couldn't open embedded asset:", assetPath, ":", err.Error())
-						exit(1)
+					if entry.Name() == config.assets.playIcon {
+						break
 					}
-					targetPath := filepath.Join(gallery.absPath, entry.Name())
-					err = os.WriteFile(targetPath, filebuffer, config.files.fileMode)
-					if err != nil {
-						log.Println("couldn't write embedded asset:", targetPath, ":", err.Error())
-						exit(1)
-					}
-				}
-			}
 
-			switch entry.Name() {
-			// Copy back.png and folder.png
-			case config.assets.backIcon, config.assets.folderIcon:
-				if dryRun {
-					log.Println("Would copy icon", entry.Name(), "to", gallery.absPath)
-				} else {
 					assetPath := filepath.Join(config.assets.assetsDir, entry.Name())
 					filebuffer, err := assets.ReadFile(assetPath)
 					if err != nil {
@@ -1201,6 +1201,9 @@ func main() {
 
 	// Copy updated web assets (JS, CSS, icons, etc) into gallery root
 	copyRootAssets(gallery, args.DryRun, config)
+
+	// Copy PWA web manifest and fill-in relevant details
+	createPWAManifest(gallery, source, args.DryRun, config)
 
 	// If there are changes in the source, update the media files
 	newSourceFiles := countChanges(source, config)
