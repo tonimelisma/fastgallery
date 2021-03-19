@@ -142,6 +142,7 @@ type htmlData struct {
 	JS         []string
 	FolderIcon string
 	BackIcon   string
+	ManifestFile string
 }
 
 // transformationJob struct is used to communicate needed image/video transformations to
@@ -664,8 +665,6 @@ func getIconType(iconPath string) (filetype string, err error) {
 
 // createPWAManifest creates a customized manifest.json for a PWA if PWA url is supplied in args
 func createPWAManifest(gallery directory, source directory, dryRun bool, config configuration) {
-	// TODO Fill in data structure, load template and execute it
-	// TODO Iterate over icons, grab size from filename
 	// TODO Add manifest link to HTMLs
 	// TODO Add apple-touch-icon to HTML
 	// TODO register service worker in HTML, add manifest and apple-touch-icon links to head
@@ -848,8 +847,14 @@ func createHTML(depth int, source directory, galleryDirectory string, dryRun boo
 	if depth > 0 {
 		thisHTML.BackIcon = filepath.Join(rootEscape, config.assets.backIcon)
 	}
+
 	// Generic folder icon to be used for each subfolder
 	thisHTML.FolderIcon = filepath.Join(rootEscape, config.assets.folderIcon)
+
+	// If we're in the root directory, add manifest link
+	if depth == 0 {
+		thisHTML.ManifestFile = config.assets.manifestFile
+	}
 
 	// thisHTML struct has been filled in successfully, parse the HTML template,
 	// fill in the data and write it to the correct file
