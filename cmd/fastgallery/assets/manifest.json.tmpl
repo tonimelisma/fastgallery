@@ -2,11 +2,12 @@
     "short_name": "{{ .Shortname }}",
     "start_url": "./",
     "icons": [
-        {{ range .Icons }}
+        {{ range $i, $e := .Icons }}
+        {{ if $i }},{{ end }}
             {
-                "src": "{ .Src }",
-                "sizes": "{ .Size }",
-                "type": "{ .Type }"
+                "src": "{{ .Src }}",
+                "sizes": "{{ .Size }}",
+                "type": "{{ .Type }}"
             }
         {{ end }}
     ],

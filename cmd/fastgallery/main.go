@@ -8,7 +8,9 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -126,6 +128,7 @@ type directory struct {
 }
 
 // htmlData struct is loaded with all the information required to generate the html from template
+// TODO refactor structure inside only function where its used
 type htmlData struct {
 	Title          string
 	Subdirectories []string
@@ -629,6 +632,36 @@ func copyFile(source string, destination string) {
 }
 */
 
+// getIconSize returns a square size (e.g. 48x48) of an icon based on its filename
+// Icon filename must have a substring starting with a string of numbers followed by a consequential
+// letter x and a string of more numbers
+func getIconSize(iconPath string) (size string, err error) {
+	iconPath = path.Base(iconPath)
+
+	re := regexp.MustCompile(`[0-9]+x[0-9]+`)
+	size = re.FindString(iconPath)
+
+	if size == "" {
+		err = errors.New("size not found in path: " + iconPath)
+		return size, err
+	}
+
+	return size, nil
+}
+
+// getIconType returns icon file format type (e.g. image/png) of an icon based on its filename
+func getIconType(iconPath string) (filetype string, err error) {
+	iconPath = path.Base(iconPath)
+
+	switch filepath.Ext(iconPath) {
+	case ".png":
+		return "image/png", nil
+	}
+
+	err = errors.New("could not decide icon filetype: " + iconPath)
+	return "", err
+}
+
 // createPWAManifest creates a customized manifest.json for a PWA if PWA url is supplied in args
 func createPWAManifest(gallery directory, source directory, dryRun bool, config configuration) {
 	// TODO Fill in data structure, load template and execute it
@@ -636,6 +669,84 @@ func createPWAManifest(gallery directory, source directory, dryRun bool, config 
 	// TODO Add manifest link to HTMLs
 	// TODO Add apple-touch-icon to HTML
 	// TODO register service worker in HTML, add manifest and apple-touch-icon links to head
+
+	var PWAData = struct {
+		Shortname string
+		Icons     []struct {
+			Src  string
+			Size string
+			Type string
+		}
+	}{
+		Shortname: source.name,
+	}
+
+	assetDirectoryListing, err := assets.ReadDir(config.assets.assetsDir)
+	if err != nil {
+		log.Println("couldn't open embedded assets:", err.Error())
+		exit(1)
+	}
+
+	re := regexp.MustCompile(`^icon`)
+
+	for _, entry := range assetDirectoryListing {
+		if !entry.IsDir() {
+			filename := filepath.Base(entry.Name())
+			// check if asset filename starts with the string "icon"
+			if re.MatchString(filename) {
+				iconSize, err := getIconSize(filename)
+				if err != nil {
+					log.Println("couldn't define icon size:", err.Error())
+					exit(1)
+				}
+
+				iconType, err := getIconType(filename)
+				if err != nil {
+					log.Println("couldn't define icon type:", err.Error())
+					exit(1)
+				}
+
+				PWAData.Icons = append(PWAData.Icons, struct {
+					Src  string
+					Size string
+					Type string
+				}{
+					Src:  filename,
+					Size: iconSize,
+					Type: iconType,
+				})
+			}
+		}
+	}
+
+	manifestFilePath := filepath.Join(gallery.absPath, config.assets.manifestFile)
+	if dryRun {
+		log.Println("Would create web app manifest file:", manifestFilePath)
+	} else {
+		templatePath := filepath.Join(config.assets.assetsDir, config.assets.manifestTemplate)
+		cookedTemplate, err := template.ParseFS(assets, templatePath)
+		if err != nil {
+			log.Println("couldn't parse manifest template", templatePath, ":", err.Error())
+			exit(1)
+		}
+
+		manifestFileHandle, err := os.Create(manifestFilePath)
+		if err != nil {
+			log.Println("couldn't create manifest file", manifestFilePath, ":", err.Error())
+			exit(1)
+		}
+
+		err = cookedTemplate.Execute(manifestFileHandle, PWAData)
+		if err != nil {
+			log.Println("couldn't execute manifest template", manifestFilePath, ":", err.Error())
+			exit(1)
+		}
+
+		manifestFileHandle.Sync()
+		manifestFileHandle.Close()
+
+		log.Println("Created manifest file:", manifestFilePath)
+	}
 }
 
 // copyRootAssets copies all the embedded assets to the root directory of the gallery
@@ -1199,12 +1310,6 @@ func main() {
 	// Check which source media exists in gallery
 	compareDirectoryTrees(&source, &gallery, config)
 
-	// Copy updated web assets (JS, CSS, icons, etc) into gallery root
-	copyRootAssets(gallery, args.DryRun, config)
-
-	// Copy PWA web manifest and fill-in relevant details
-	createPWAManifest(gallery, source, args.DryRun, config)
-
 	// If there are changes in the source, update the media files
 	newSourceFiles := countChanges(source, config)
 
@@ -1229,6 +1334,12 @@ func main() {
 			}
 			defer vips.Shutdown()
 		}
+
+		// Copy updated web assets (JS, CSS, icons, etc) into gallery root
+		copyRootAssets(gallery, args.DryRun, config)
+
+		// Copy PWA web manifest and fill-in relevant details
+		createPWAManifest(gallery, source, args.DryRun, config)
 
 		// Handle ctrl-C or other signals
 		setupSignalHandler()

@@ -399,6 +399,38 @@ func testTransformFileAndVideo(t *testing.T) {
 	assert.FileExists(t, testJob.originalFilepath)
 }
 
+func TestGetIconSize(t *testing.T) {
+	iconSize, err := getIconSize("/tmp/icon-48x48.png")
+	assert.NoError(t, err)
+	assert.EqualValues(t, "48x48", iconSize)
+
+	iconSize, err = getIconSize("test192x192-apple.svg")
+	assert.NoError(t, err)
+	assert.EqualValues(t, "192x192", iconSize)
+
+	iconSize, err = getIconSize("test-xicon-64x64.ico")
+	assert.NoError(t, err)
+	assert.EqualValues(t, "64x64", iconSize)
+
+	iconSize, err = getIconSize("test-xicon.ico")
+	assert.Error(t, err)
+	assert.EqualValues(t, "", iconSize)
+}
+
+func TestGetIconType(t *testing.T) {
+	iconType, err := getIconType("/tmp/icon-48x48.png")
+	assert.NoError(t, err)
+	assert.EqualValues(t, "image/png", iconType)
+
+	iconType, err = getIconType("icon-48x48.png")
+	assert.NoError(t, err)
+	assert.EqualValues(t, "image/png", iconType)
+
+	iconType, err = getIconType("icon-48x48.jpg")
+	assert.Error(t, err)
+	assert.EqualValues(t, "", iconType)
+}
+
 // TODO tests for
 // isDirectory with symlinked dir
 // isSymlinkDir
