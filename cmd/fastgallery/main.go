@@ -138,10 +138,10 @@ type htmlData struct {
 		Fullsize  string
 		Original  string
 	}
-	CSS        []string
-	JS         []string
-	FolderIcon string
-	BackIcon   string
+	CSS          []string
+	JS           []string
+	FolderIcon   string
+	BackIcon     string
 	ManifestFile string
 }
 
@@ -424,6 +424,10 @@ func reservedFile(path string, config configuration) bool {
 		return true
 	}
 
+	if isIcon(path) {
+		return true
+	}
+
 	return false
 }
 
@@ -633,6 +637,12 @@ func copyFile(source string, destination string) {
 }
 */
 
+func isIcon(iconPath string) bool {
+	re := regexp.MustCompile(`^icon`)
+	iconPath = filepath.Base(iconPath)
+	return re.MatchString(iconPath)
+}
+
 // getIconSize returns a square size (e.g. 48x48) of an icon based on its filename
 // Icon filename must have a substring starting with a string of numbers followed by a consequential
 // letter x and a string of more numbers
@@ -686,13 +696,12 @@ func createPWAManifest(gallery directory, source directory, dryRun bool, config 
 		exit(1)
 	}
 
-	re := regexp.MustCompile(`^icon`)
-
 	for _, entry := range assetDirectoryListing {
 		if !entry.IsDir() {
+			// TODO refactor filename away below, redundant
 			filename := filepath.Base(entry.Name())
 			// check if asset filename starts with the string "icon"
-			if re.MatchString(filename) {
+			if isIcon(filename) {
 				iconSize, err := getIconSize(filename)
 				if err != nil {
 					log.Println("couldn't define icon size:", err.Error())
@@ -1224,6 +1233,7 @@ func cleanDirectory(gallery directory, dryRun bool, config configuration) {
 
 func updateHTMLFiles(depth int, source directory, gallery directory, dryRun bool, cleanUp bool, config configuration) {
 	galleryDirectory := filepath.Join(gallery.absPath, source.relPath)
+	// TODO only update HTML in directories where it's missing
 	if hasDirectoryChanged(source, gallery, cleanUp, config) {
 		createHTML(depth, source, galleryDirectory, dryRun, config)
 	}
