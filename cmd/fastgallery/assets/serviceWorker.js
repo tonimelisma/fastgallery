@@ -7,11 +7,10 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-    var response
     try {
-        response = fetch(event.request)
+        return fetch(event.request)
     } catch (error) {
-        response = new Response(
+        return new Response(
             "<h1>No network connection</h1>Retrying...<script>setTimeout(() => { window.location.reload(1); }, 5000);</script>",
             {
                 headers: {
@@ -19,5 +18,4 @@ self.addEventListener('fetch', (event) => {
                 }
             })
     }
-    event.respondWith(response);
 });
