@@ -21,5 +21,5 @@ testgallery: build
 clean:
 	rm bin/fastgallery
 
-install:
+install: build
 	cp bin/fastgallery ~/.local/bin
