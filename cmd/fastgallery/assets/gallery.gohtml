@@ -94,6 +94,13 @@
     <script>
         feather.replace()
     </script>
+    {{ if .ManifestFile }}
+    <script>
+        if('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('serviceWorker.js')
+        }
+    </script>
+    {{ end }}
 
  </body>
 </html>
