@@ -1355,6 +1355,7 @@ func main() {
 
 		// Copy PWA web manifest and fill-in relevant details
 		createPWAManifest(gallery, source, args.DryRun, config)
+		// TODO move asset creation with HTML and do version comparison
 
 		// Handle ctrl-C or other signals
 		setupSignalHandler()
