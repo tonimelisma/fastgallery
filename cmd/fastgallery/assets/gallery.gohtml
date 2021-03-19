@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="utf-8">
     {{if .ManifestFile }}
-      <link href="{{ . }}" rel="manifest">
+      <link href="{{ .ManifestFile }}" rel="manifest">
     {{ end }}
 	{{ range .CSS }}
       <link href="{{ . }}" rel="stylesheet">
