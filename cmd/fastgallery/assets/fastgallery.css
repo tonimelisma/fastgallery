@@ -2,6 +2,12 @@
     cursor: pointer;
 }
 
+.thumbnail {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 280/210;
+}
+
 #modalMedia {
     max-width: 100%;
     max-height: calc(100% - 74px);

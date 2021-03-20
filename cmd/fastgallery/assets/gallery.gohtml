@@ -5,8 +5,11 @@
   <title>{{ .Title }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="utf-8">
-    {{if .ManifestFile }}
+    {{ if .ManifestFile }}
       <link href="{{ .ManifestFile }}" rel="manifest">
+      {{ if .AppleTouchIcon }}
+        <link href="{{ .AppleTouchIcon }}" rel="apple-touch-icon">
+      {{ end }}
     {{ end }}
 	{{ range .CSS }}
       <link href="{{ . }}" rel="stylesheet">
@@ -23,7 +26,7 @@
     {{if .BackIcon}}
             <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3">
                 <a href="../">
-                    <img class="box border border-gray box-shadow width-fit" src="{{ .BackIcon }}" alt="Back">
+                    <img class="box border border-gray box-shadow width-fit thumbnail" src="{{ .BackIcon }}" alt="Back" width="{{ .ImageWidth }}" height="{{ .ImageHeight }}">
                 </a>
                 <span class="px-2 pb-2 width-fit css-truncate css-truncate-target">Back</span>
             </div>
@@ -32,7 +35,7 @@
 	{{range .Subdirectories}}
             <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3">
                 <a href="{{ . }}">
-                    <img class="box border border-gray box-shadow width-fit" src="{{ $.FolderIcon }}" alt="{{ . }}">
+                    <img class="box border border-gray box-shadow width-fit thumbnail" src="{{ $.FolderIcon }}" alt="{{ . }}" width="{{ $.ImageWidth }}" height="{{ $.ImageHeight }}">
                 </a>
                 <span class="px-2 pb-2 width-fit css-truncate css-truncate-target">{{ . }}</span>
             </div>
@@ -40,7 +43,7 @@
 
 	{{range $i, $e := .Files}}
             <div class="col-4 col-md-3 col-lg-2 float-left p-md-2 p-lg-3">
-                <img class="box border border-gray box-shadow width-fit" src="{{ .Thumbnail }}" alt="{{ .Filename }}" onclick="changePicture({{ $i }});displayModal(true);">
+                <img class="box border border-gray box-shadow width-fit thumbnail" src="{{ .Thumbnail }}" alt="{{ .Filename }}" onclick="changePicture({{ $i }});displayModal(true);" width="{{ $.ImageWidth }}" height="{{ $.ImageHeight }}">
                 <span class="px-2 pb-2 width-fit css-truncate css-truncate-target">{{ .Filename }}</span>
 			</div>
 	{{end}}

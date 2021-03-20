@@ -138,11 +138,14 @@ type htmlData struct {
 		Fullsize  string
 		Original  string
 	}
-	CSS          []string
-	JS           []string
-	FolderIcon   string
-	BackIcon     string
-	ManifestFile string
+	CSS            []string
+	JS             []string
+	FolderIcon     string
+	BackIcon       string
+	AppleTouchIcon string
+	ManifestFile   string
+	ImageWidth     string
+	ImageHeight    string
 }
 
 // transformationJob struct is used to communicate needed image/video transformations to
@@ -850,6 +853,13 @@ func createHTML(depth int, source directory, galleryDirectory string, dryRun boo
 				thisHTML.JS = append(thisHTML.JS, filepath.Join(rootEscape, entry.Name()))
 			case ".css":
 				thisHTML.CSS = append(thisHTML.CSS, filepath.Join(rootEscape, entry.Name()))
+			case ".png":
+				if isIcon(entry.Name()) {
+					iconSize, _ := getIconSize(entry.Name())
+					if iconSize == "180x180" {
+						thisHTML.AppleTouchIcon = entry.Name()
+					}
+				}
 			}
 		}
 	}
@@ -866,6 +876,10 @@ func createHTML(depth int, source directory, galleryDirectory string, dryRun boo
 	if depth == 0 {
 		thisHTML.ManifestFile = config.assets.manifestFile
 	}
+
+	// Add image height and width
+	thisHTML.ImageHeight = fmt.Sprint(config.media.thumbnailHeight)
+	thisHTML.ImageWidth = fmt.Sprint(config.media.thumbnailWidth)
 
 	// thisHTML struct has been filled in successfully, parse the HTML template,
 	// fill in the data and write it to the correct file
