@@ -637,6 +637,8 @@ func copyFile(source string, destination string) {
 }
 */
 
+// TODO document function
+// TODO icons without transparent backgrounds
 func isIcon(iconPath string) bool {
 	re := regexp.MustCompile(`^icon`)
 	iconPath = filepath.Base(iconPath)
@@ -877,6 +879,8 @@ func createHTML(depth int, source directory, galleryDirectory string, dryRun boo
 			log.Println("couldn't parse HTML template", templatePath, ":", err.Error())
 			exit(1)
 		}
+		// TODO apple-touch-icon to template
+		// TODO simplify service worker
 
 		htmlFileHandle, err := os.Create(htmlFilePath)
 		if err != nil {
