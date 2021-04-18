@@ -42,9 +42,9 @@ for (let box of boxes) {
 const displayModal = (display) => {
     if (display) {
         document.getElementById("modal").hidden = false
-        document.getElementById("thumbnails").hidden = true
+        // document.getElementById("thumbnails").hidden = true
     } else {
-        document.getElementById("thumbnails").hidden = false
+        // document.getElementById("thumbnails").hidden = false
         document.getElementById("modal").hidden = true
         document.getElementById("modalMedia").innerHTML = ""
         window.location.hash = ""
@@ -66,6 +66,7 @@ const preload = (number) => {
     }
     document.head.appendChild(preloadLink)
 }
+
 const prevPicture = () => {
     changePicture(getPrevPicture())
     preload(getPrevPicture())
