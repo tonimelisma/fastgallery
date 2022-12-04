@@ -10,11 +10,8 @@
 - Uses relative paths (safe for using in subdirectory or S3)
 - Minimal bloat (vanilla JS frontend, minimal CSS)
 
-*Fastgallery has just been rewritten to better handle incremental updates of the gallery.
-*The command-line syntax changed to a more sane version, please see below
-
 ## Examples
-Please see [https://www.melisma.fi/fastgallery-examples/](https://www.melisma.fi/fastgallery-examples/)
+Please see [https://www.melisma.net/fastgallery-examples/](https://www.melisma.fi/fastgallery-examples/)
 
 ## Dependencies
 ### MacOS
